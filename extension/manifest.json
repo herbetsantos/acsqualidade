@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "e-SUS PEC - Extensão de Inquérito",
+  "version": "2.8.2",
+  "description": "Captura estruturada do acompanhamento territorial do e-SUS PEC e gera mailing territorial para o Inquérito ACS.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://inquerito.pages.dev/*",
+    "https://esus.cajamar.sp.gov.br/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Inquérito e-SUS PEC"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://inquerito.pages.dev/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://esus.cajamar.sp.gov.br/gestaoCadastros/acompanhamento-territorio*"
+      ],
+      "js": [
+        "pec-hook.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://inquerito.pages.dev/*"
+    ]
+  }
+}

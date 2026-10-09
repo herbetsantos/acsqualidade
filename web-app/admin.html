@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Administração de Usuários — Inquérito ACS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <header class="app-topbar">
+    <div class="app-brand"><strong>Inquérito</strong><span class="app-brand__divider"></span><span>ACS</span></div>
+    <div class="app-actions">
+      <span class="user-role">Administração</span>
+      <a class="btn btn-secondary" href="dashboard.html">Painel</a><a class="btn btn-secondary" href="mailings.html">Mailing territorial</a>
+      <button id="btn-logout" type="button" class="btn btn-secondary">Sair</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="page__head admin-head">
+      <div>
+        <div class="eyebrow">Administração</div>
+        <h1 class="page__title">Funcionários e usuários</h1>
+      </div>
+      <button id="btn-novo" type="button" class="btn btn-primary">+ Cadastrar funcionário</button>
+    </div>
+
+    <section class="panel table-wrap">
+      <table id="tabela-usuarios">
+        <thead>
+          <tr>
+            <th>Nome</th><th>CPF</th><th>Perfil</th><th>CNES</th><th>Equipe</th><th>Status</th><th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <div id="modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div><div class="eyebrow">Cadastro de funcionário</div><h2 id="modal-title">Cadastrar funcionário</h2></div>
+        <button id="btn-fechar" type="button" class="btn btn-secondary">Fechar</button>
+      </div>
+      <form id="form-usuario">
+        <input type="hidden" id="usuario-id">
+        <div class="form-grid">
+          <div class="form-group"><label for="nome">Nome *</label><input id="nome" required maxlength="120"></div>
+          <div class="form-group"><label for="cpf">CPF *</label><input id="cpf" inputmode="numeric" maxlength="14" required></div>
+          <div class="form-group"><label for="perfil">Perfil de acesso *</label>
+            <select id="perfil" required><option value="operador">Operador</option><option value="gestor">Gestor</option><option value="auditor">Auditor</option><option value="admin">Administrador</option></select>
+          </div>
+          <div class="form-group"><label for="ativo">Status</label><select id="ativo"><option value="1">Ativo</option><option value="0">Inativo</option></select></div>
+          <div class="form-group"><label for="cnes">CNES / unidade</label><input id="cnes" maxlength="20"></div>
+          <div class="form-group"><label for="equipe">Equipe / setor</label><input id="equipe" maxlength="120"></div>
+          <div class="form-group form-group--full"><label for="senha">Senha <span id="senha-ajuda">*</span></label><input id="senha" type="password" minlength="6" autocomplete="new-password"><small>No cadastro, a senha é obrigatória. Na edição, deixe em branco para manter a senha atual.</small></div>
+        </div>
+        <div id="form-erro" class="erro-msg hidden" role="alert"></div>
+        <div class="modal-actions"><button type="submit" class="btn btn-primary">Salvar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const modal = $('modal');
+    let usuarios = [];
+
+    function escapeText(value) { return value == null ? '' : String(value); }
+    function formatarCpf(cpf) {
+      const v = String(cpf || '').replace(/\D/g, '').slice(0, 11);
+      return v.length === 11 ? v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : v;
+    }
+    function perfilNome(p) { return ({admin:'Administrador', gestor:'Gestor', auditor:'Auditor', operador:'Operador'})[p] || p; }
+
+    async function garantirAdmin() {
+      const r = await fetch('/api/me');
+      if (!r.ok) { window.location.replace('index.html'); return false; }
+      const eu = await r.json();
+      if (eu.perfil !== 'admin') { window.location.replace('inquerito.html'); return false; }
+      return true;
+    }
+
+    async function carregar() {
+      const r = await fetch('/api/admin/profissionais');
+      if (r.status === 401 || r.status === 403) { alert('Acesso não autorizado.'); window.location.replace('inquerito.html'); return; }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.mensagem || `HTTP ${r.status}`);
+      usuarios = data.profissionais || [];
+      const tbody = $('tabela-usuarios').querySelector('tbody');
+      tbody.innerHTML = '';
+      usuarios.forEach((u) => {
+        const tr = document.createElement('tr');
+        [u.nome, formatarCpf(u.cpf), perfilNome(u.perfil), u.cnes || '—', u.equipe || '—', u.ativo ? 'Ativo' : 'Inativo'].forEach((v) => {
+          const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+        });
+        const td = document.createElement('td');
+        const editar = document.createElement('button'); editar.className = 'btn btn-secondary btn-small'; editar.textContent = 'Editar'; editar.onclick = () => abrir(u);
+        td.appendChild(editar);
+        if (u.ativo) {
+          const inativar = document.createElement('button'); inativar.className = 'btn btn-danger btn-small'; inativar.textContent = 'Inativar'; inativar.onclick = () => inativarUsuario(u);
+          td.appendChild(inativar);
+        } else {
+          const ativar = document.createElement('button'); ativar.className = 'btn btn-primary btn-small'; ativar.textContent = 'Habilitar'; ativar.onclick = () => ativarUsuario(u);
+          td.appendChild(ativar);
+        }
+        tr.appendChild(td); tbody.appendChild(tr);
+      });
+    }
+
+    function abrir(u = null) {
+      $('form-usuario').reset();
+      $('usuario-id').value = u?.id || '';
+      $('modal-title').textContent = u ? 'Editar funcionário' : 'Cadastrar funcionário';
+      $('nome').value = u?.nome || '';
+      $('cpf').value = formatarCpf(u?.cpf || '');
+      $('perfil').value = u?.perfil || 'operador';
+      $('ativo').value = u ? String(u.ativo ? 1 : 0) : '1';
+      $('cnes').value = u?.cnes || '';
+      $('equipe').value = u?.equipe || '';
+      $('senha').value = '';
+      $('senha').required = !u;
+      $('senha-ajuda').textContent = u ? '(opcional)' : '*';
+      $('form-erro').classList.add('hidden');
+      modal.classList.remove('hidden');
+      $('nome').focus();
+    }
+    function fechar() { modal.classList.add('hidden'); }
+
+    async function salvar(e) {
+      e.preventDefault();
+      const id = Number($('usuario-id').value || 0);
+      const payload = {
+        nome: $('nome').value.trim(), cpf: $('cpf').value,
+        perfil: $('perfil').value, ativo: $('ativo').value === '1',
+        cnes: $('cnes').value.trim(), equipe: $('equipe').value.trim(), senha: $('senha').value
+      };
+      if (id) payload.id = id;
+      $('form-erro').classList.add('hidden');
+      try {
+        const r = await fetch('/api/admin/profissionais', { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.mensagem || `HTTP ${r.status}`);
+        fechar(); await carregar(); alert(data.mensagem || (id ? 'Funcionário atualizado com sucesso.' : 'Funcionário cadastrado com sucesso.'));
+      } catch (err) { $('form-erro').textContent = err.message; $('form-erro').classList.remove('hidden'); }
+    }
+
+    async function ativarUsuario(u) {
+      if (!confirm(`Habilitar o usuário ${u.nome}? Ele poderá entrar no sistema novamente.`)) return;
+      try {
+        const r = await fetch('/api/admin/profissionais', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:u.id, ativo:true}) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.mensagem || `HTTP ${r.status}`);
+        await carregar(); alert(data.mensagem || 'Usuário habilitado.');
+      } catch (err) { alert(err.message); }
+    }
+
+    async function inativarUsuario(u) {
+      if (!confirm(`Inativar o usuário ${u.nome}? Ele não poderá mais entrar no sistema.`)) return;
+      try {
+        const r = await fetch('/api/admin/profissionais', { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id:u.id}) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.mensagem || `HTTP ${r.status}`);
+        await carregar(); alert(data.mensagem || 'Usuário inativado.');
+      } catch (err) { alert(err.message); }
+    }
+
+    $('btn-novo').onclick = () => abrir();
+    $('btn-fechar').onclick = fechar;
+    $('form-usuario').onsubmit = salvar;
+    $('cpf').addEventListener('input', (e) => { e.target.value = formatarCpf(e.target.value); });
+    $('btn-logout').onclick = async () => { await fetch('/api/logout', {method:'POST'}).catch(()=>{}); window.location.replace('index.html'); };
+    modal.addEventListener('click', (e) => { if (e.target === modal) fechar(); });
+
+    (async () => {
+      try { if (await garantirAdmin()) await carregar(); }
+      catch (e) { alert('Erro ao carregar usuários: ' + e.message); }
+    })();
+  </script>
+</body>
+</html>

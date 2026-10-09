@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acesso Restrito — Inquérito ACS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <div class="login">
+   <div class="login-layout">
+    <div class="login-hero">
+      <h1>Inquérito ACS</h1>
+      <p>Inquérito telefônico para acompanhar as visitas dos Agentes Comunitários de Saúde.</p>
+    </div>
+    <div class="login-card">
+    <h2>Acesso restrito</h2>
+    <p class="sub">Entre com seu CPF e senha.</p>
+    <form id="form-login">
+      <div class="form-group"><label for="usuario">CPF</label>
+      <input type="text" id="usuario" inputmode="numeric" required autocomplete="username"></div>
+      <div class="form-group"><label for="senha">Senha</label>
+      <input type="password" id="senha" required autocomplete="current-password"></div>
+      <button type="submit" class="btn-login">Entrar</button>
+      <div id="msg-erro" class="erro-msg hidden" role="alert"></div>
+    </form>
+    </div>
+   </div>
+  </div>
+
+  <script>
+    // Dados vindos da extensão (#microarea=...) são preservados após o login.
+    const fragmento = window.location.hash;
+
+    function destino(perfil) {
+      if (fragmento.length <= 1 && ['admin', 'gestor', 'auditor'].includes(perfil)) return 'dashboard.html';
+      return 'inquerito.html' + fragmento;
+    }
+
+    // Já tem sessão válida? Segue direto.
+    fetch('/api/me').then((r) => (r.ok ? r.json() : null)).then((u) => {
+      if (u) window.location.replace(destino(u.perfil));
+    }).catch(() => {});
+
+    document.getElementById('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msgErro = document.getElementById('msg-erro');
+      const botao = e.target.querySelector('button[type=submit]');
+      msgErro.classList.add('hidden');
+      botao.disabled = true;
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            usuario: document.getElementById('usuario').value,
+            senha: document.getElementById('senha').value
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          window.location.href = destino(data.perfil);
+        } else {
+          msgErro.innerText = data.mensagem || `Falha no login (HTTP ${res.status}).`;
+          msgErro.classList.remove('hidden');
+        }
+      } catch (err) {
+        msgErro.innerText = 'Erro ao conectar ao servidor.';
+        msgErro.classList.remove('hidden');
+      } finally {
+        botao.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

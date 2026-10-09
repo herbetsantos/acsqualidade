@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+body{font-family:Arial,sans-serif;width:360px;padding:14px;margin:0;color:#222}
+h3{margin:0 0 8px}.muted{font-size:12px;color:#666}
+.card{border:1px solid #ddd;border-radius:10px;padding:10px;margin:10px 0}
+button{width:100%;padding:9px;margin-top:7px;border:0;border-radius:8px;background:#1351B4;color:#fff;font-weight:700;cursor:pointer}
+button.secondary{background:#eee;color:#222}.micro{display:flex;gap:8px;align-items:center;padding:4px 0}
+#status{font-size:12px;margin-top:8px;line-height:1.35}
+</style>
+</head>
+<body>
+<h3>Inquérito e-SUS PEC</h3>
+<div class="muted">Gerador de mailing territorial</div>
+<div class="card">
+  <div><strong>Perfil no Inquérito:</strong> <span id="perfil">verificando…</span></div>
+  <div><strong>Unidade:</strong> <span id="unidade">—</span></div>
+  <div><strong>Equipe:</strong> <span id="equipe">—</span></div>
+  <div style="margin-top:8px"><strong>Microáreas</strong></div>
+  <div id="microareas">Carregando…</div>
+  <button id="btnTodos" class="secondary">Selecionar todas</button>
+</div>
+<button id="btnGerar">📋 Gerar mailing das microáreas selecionadas</button>
+<button id="btnRetomar" class="secondary">↻ Continuar coleta interrompida</button>
+<button id="btnMarcar" class="secondary" style="display:none"></button>
+<button id="btnDesmarcar" class="secondary" style="display:none">✖ Remover marcas do PEC</button>
+<button id="btnParar" class="secondary" style="display:none">⏹ Parar coleta</button>
+<div class="muted" style="margin-top:8px">Durante a coleta, a extensão abre uma casa por vez nesta aba. Não mexa na aba do e-SUS até concluir. Depois, importe o mailing em <b>Mailing</b>, no Inquérito.</div>
+<div id="status"></div>
+<script src="popup.js"></script>
+</body>
+</html>

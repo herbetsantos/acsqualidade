@@ -1,0 +1,2 @@
+JWT_SECRET=troque-por-um-segredo-longo-e-aleatorio
+BI_API_KEY=gere-uma-chave-longa-e-aleatoria-para-o-looker-studio

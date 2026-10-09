@@ -1,0 +1,8 @@
+name = "inquerito"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "web-app"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "inquerito-db"
+database_id = "0e29e9d8-7db9-4495-b4bc-c4aedffb5bc7"

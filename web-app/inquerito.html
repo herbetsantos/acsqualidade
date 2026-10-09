@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inquérito Telefônico — ACS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <header class="app-topbar">
+    <div class="app-brand"><strong>Inquérito</strong><span class="app-brand__divider"></span><span>ACS</span></div>
+    <div class="app-actions">
+      <a id="lnk-dashboard" class="btn btn-secondary hidden" href="dashboard.html">Painel de gestão</a>
+      <a id="lnk-admin" class="btn btn-secondary hidden" href="admin.html">Usuários</a>
+      <button id="btn-logout" class="btn btn-secondary" type="button">Sair</button>
+    </div>
+  </header>
+  <main class="page page--narrow">
+    <div class="page__head">
+      <div class="eyebrow">Inquérito telefônico</div>
+      <h1 class="page__title">Registrar ligação</h1>
+    </div>
+    <div id="barra-mailing" class="mailing-bar hidden">
+      <div>
+        <div class="mailing-bar__titulo" id="mailing-titulo"></div>
+        <div class="mailing-bar__info" id="mailing-info"></div>
+      </div>
+      <button id="btn-pular" type="button" class="btn btn-secondary">Pular contato</button>
+    </div>
+    <div id="msg-form" class="erro-msg hidden" role="status"></div>
+    <form id="form-inquerito" class="card">
+      <h2 class="card-title">Dados do atendimento</h2>
+      <div class="form-grid">
+        <div class="form-group"><label for="microarea">Microárea</label><input type="text" id="microarea" readonly></div>
+        <div class="form-group"><label for="acs_nome">ACS</label><input type="text" id="acs_nome" readonly></div>
+        <div class="form-group"><label for="endereco_pec">Endereço (e-SUS)</label><input type="text" id="endereco_pec" readonly></div>
+        <div class="form-group"><label for="responsavel_familiar">Responsável familiar</label><input type="text" id="responsavel_familiar" readonly></div>
+        <div class="form-group"><label for="telefone_contato">Telefone</label><input type="text" id="telefone_contato" readonly><small id="tel-extra" class="hint"></small></div>
+        <div class="form-group">
+          <label for="status_ligacao">Resultado da ligação *</label>
+          <select id="status_ligacao" required>
+            <option value="">Selecione…</option>
+            <option value="atendeu">Atendeu</option>
+            <option value="nao_atendeu">Não atendeu</option>
+            <option value="caixa_postal">Caixa postal</option>
+            <option value="numero_invalido">Número inválido</option>
+            <option value="recusou">Recusou responder</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="visita_registrada_pec">Visita registrada no e-SUS?</label>
+          <select id="visita_registrada_pec"><option value="">—</option><option value="true">Sim</option><option value="false">Não</option></select>
+        </div>
+        <div class="form-group"><label for="data_visita_pec">Data da visita (e-SUS)</label><input type="date" id="data_visita_pec"></div>
+        <div class="form-group">
+          <label for="visita_relatada_paciente">Paciente confirma a visita?</label>
+          <select id="visita_relatada_paciente"><option value="">—</option><option value="true">Sim</option><option value="false">Não</option></select>
+        </div>
+        <div class="form-group">
+          <label for="conhece_agente">Conhece o agente?</label>
+          <select id="conhece_agente"><option value="">—</option><option value="true">Sim</option><option value="false">Não</option></select>
+        </div>
+        <div class="form-group"><label for="nivel_satisfacao">Satisfação (0–10)</label><input type="number" id="nivel_satisfacao" min="0" max="10" step="1"></div>
+      </div>
+      <div class="form-group"><label for="observacoes">Observações</label><textarea id="observacoes" rows="3" maxlength="2000"></textarea></div>
+      <button type="submit" class="btn btn-primary">Salvar inquérito</button>
+    </form>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Gestão - Inquérito ACS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body>
+  <header class="app-topbar">
+    <div class="app-brand"><strong>Inquérito</strong><span class="app-brand__divider"></span><span>ACS</span></div>
+    <div class="app-actions">
+      <a id="lnk-admin" class="btn btn-secondary hidden" href="admin.html">Usuários</a><a id="lnk-mailing" class="btn btn-secondary hidden" href="mailings.html">Mailing territorial</a>
+      <span id="user-role" class="user-role">Perfil</span>
+      <button id="btn-logout" type="button" class="btn btn-secondary">Sair</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page__head">
+      <div id="page-eyebrow" class="eyebrow">Gestão</div>
+      <h1 id="page-title" class="page__title">Painel de Gestão</h1>
+    </div>
+
+    <!-- Cards de Métricas -->
+    <section class="panel" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div>
+          <h2 class="section-title" style="margin:0">Exportação de dados</h2>
+          <p style="margin:6px 0 0">Baixe os dados disponíveis para o seu perfil em CSV.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn btn-primary" href="/api/export/inqueritos.csv">Exportar inquéritos CSV</a>
+          <a class="btn btn-secondary" href="/api/export/campanhas.csv">Exportar campanhas CSV</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="metrics-grid">
+      <div class="card-metric">
+        <h3>Total Entrevistas</h3>
+        <p id="total-inqueritos">0</p>
+      </div>
+      <div class="card-metric alerta">
+        <h3>Divergências Detectadas</h3>
+        <p id="total-divergencias">0</p>
+      </div>
+      <div id="card-satisfacao" class="card-metric">
+        <h3>Média Satisfação</h3>
+        <p id="media-satisfacao">0.0</p>
+      </div>
+    </div>
+
+    <section id="secao-mailing" class="panel hidden" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <div><h2 class="section-title" style="margin:0">Mailing territorial</h2><p style="margin:6px 0 0">Campanhas e quantidade de registros importados do e-SUS.</p></div>
+        <a class="btn btn-primary" href="mailings.html">Gerenciar mailing</a>
+      </div>
+      <div class="table-wrap" style="margin-top:12px"><table id="tabela-mailing"><thead><tr><th>Campanha</th><th>Unidade</th><th>Mailing</th><th>Concluídos</th><th>Pendentes</th><th>Ação</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- Tabela de Auditoria por ACS -->
+    <section>
+      <h2 class="section-title">Acompanhamento por Agente (ACS)</h2>
+      <div class="panel table-wrap">
+      <table id="tabela-gestao">
+        <thead>
+          <tr>
+            <th>ACS</th>
+            <th>Microárea</th>
+            <th>Total Entrevistas</th>
+            <th>Visitas Confirmadas</th>
+            <th>Divergências (e-SUS x Paciente)</th>
+            <th>Média Mapeada</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Preenchido via API -->
+        </tbody>
+      </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function esc(v){ return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    async function excluirAcompanhamento(r) {
+      const rotulo = `${r.acs_nome} — microárea ${r.microarea}`;
+      if (!confirm(`Excluir os ${r.total} inquérito(s) do acompanhamento "${rotulo}"?\n\nA exclusão é permanente e remove as respostas registradas (as divergências e médias deixam de considerá-las). Recomenda-se exportar o CSV de inquéritos antes.`)) return;
+      const q = new URLSearchParams({ esperado: String(r.total) });
+      if (r.acs_raw == null) q.set('acs_nulo', '1'); else q.set('acs_nome', r.acs_raw);
+      if (r.microarea_raw == null) q.set('microarea_nula', '1'); else q.set('microarea', r.microarea_raw);
+      const res = await fetch('/api/admin/acompanhamentos?' + q.toString(), { method: 'DELETE' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(d.mensagem || `Erro ao excluir acompanhamento (HTTP ${res.status}).`); return; }
+      alert(d.mensagem);
+      location.reload();
+    }
+    document.addEventListener('DOMContentLoaded', async () => {
+      const voltar = () => { window.location.href = 'index.html'; };
+
+      document.getElementById('btn-logout').addEventListener('click', async () => {
+        await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+        voltar();
+      });
+
+      try {
+        const me = await fetch('/api/me');
+        if (me.status === 401) { voltar(); return; }
+        if (!me.ok) { window.location.href = 'inquerito.html'; return; }
+        const eu = await me.json();
+
+        const ehAuditor = eu.perfil === 'auditor';
+        if (eu.perfil === 'admin') { document.getElementById('lnk-admin').classList.remove('hidden'); document.getElementById('lnk-mailing').classList.remove('hidden'); }
+        document.getElementById('user-role').innerText = 'Perfil: ' + (eu.perfil === 'admin' ? 'Administrador' : eu.perfil === 'gestor' ? 'Gestão' : 'Auditoria');
+        document.getElementById('page-eyebrow').innerText = ehAuditor ? 'Auditoria' : eu.perfil === 'admin' ? 'Administração' : 'Gestão';
+        document.getElementById('page-title').innerText = ehAuditor ? 'Painel de Auditoria' : eu.perfil === 'admin' ? 'Painel de Administração e Gestão' : 'Painel de Gestão';
+
+        if (eu.perfil === 'admin') {
+          const sec = document.getElementById('secao-mailing');
+          const rc = await fetch('/api/admin/campanhas');
+          if (rc.ok) {
+            const dc = await rc.json();
+            const tbodyM = document.querySelector('#tabela-mailing tbody');
+            const campanhas = dc.campanhas || [];
+            sec.classList.remove('hidden');
+            tbodyM.innerHTML = campanhas.length ? campanhas.map(c => `<tr><td>${esc(c.nome)}</td><td>${esc(c.unidade || '—')}</td><td>${c.total || 0}</td><td>${c.concluidos || 0}</td><td>${c.pendentes || 0}</td><td><a class="btn btn-secondary btn-small" href="mailings.html?campanha_id=${encodeURIComponent(c.id)}">Ver mailing</a></td></tr>`).join('') : '<tr><td colspan="6">Nenhuma campanha criada.</td></tr>';
+          }
+        }
+
+        const endpoint = ehAuditor ? '/api/auditoria/metricas' : '/api/gestao/metricas';
+        const res = await fetch(endpoint);
+        if (res.status === 401) { voltar(); return; }
+        if (res.status === 403) { alert('Acesso não autorizado para este perfil.'); window.location.href = 'inquerito.html'; return; }
+        const data = await res.json();
+
+        document.getElementById('total-inqueritos').innerText = data.totalInqueritos;
+        document.getElementById('total-divergencias').innerText = data.totalDivergencias;
+        if (ehAuditor) {
+          document.getElementById('card-satisfacao').classList.add('hidden');
+        } else {
+          document.getElementById('media-satisfacao').innerText = data.mediaSatisfacao ?? '—';
+        }
+
+        if (eu.perfil === 'admin') { const th = document.createElement('th'); th.textContent = 'Ação'; document.querySelector('#tabela-gestao thead tr').appendChild(th); }
+        const tbody = document.querySelector('#tabela-gestao tbody');
+        (data.porAcs || []).forEach((r) => {
+          const tr = document.createElement('tr');
+          [r.acs_nome, r.microarea, r.total, r.confirmadas, r.divergencias,
+           r.media != null ? Number(r.media).toFixed(1) : '—']
+            .forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+          if (eu.perfil === 'admin') {
+            const td = document.createElement('td');
+            const b = document.createElement('button');
+            b.type = 'button'; b.className = 'btn btn-danger btn-small'; b.textContent = 'Excluir';
+            b.onclick = () => excluirAcompanhamento(r);
+            td.appendChild(b); tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Erro ao carregar métricas:', err);
+      }
+    });
+  </script>
+</body>
+</html>
