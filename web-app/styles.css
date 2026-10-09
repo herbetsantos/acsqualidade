@@ -404,3 +404,11 @@ input[type="checkbox"], input[type="radio"] {
 .mailing-bar__info { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .hint { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 #msg-form { margin: 0 0 16px; }
+
+/* Botão de WhatsApp (tela de registrar ligação) */
+.whats { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.whats textarea { width: 100%; }
+.whats__links { display: flex; flex-wrap: wrap; gap: 6px; }
+.whats .btn-small { align-self: flex-start; }
+.btn-whats { background: #1fa855; color: #fff; text-decoration: none; margin: 0; }
+.btn-whats:hover { background: #178a45; }

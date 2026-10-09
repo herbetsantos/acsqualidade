@@ -28,6 +28,65 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let contatoAtual = null; // item do mailing em atendimento (null = modo manual)
 
+  // ---- WhatsApp: abre a conversa (wa.me) com a mensagem inicial padrão já preenchida ----
+  const MSG_WHATS = 'Olá, {paciente}, me chamo {operador}, falo do Departamento de Atenção Primária, da Secretaria de Saúde de Cajamar, tudo bem?';
+  const primeiroNome = (n) => {
+    const p = String(n || '').trim().split(/\s+/)[0] || '';
+    return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
+  };
+  // Devolve o número no formato do wa.me (55 + DDD + celular de 9 dígitos) ou null se não for celular
+  const numeroWhats = (tel) => {
+    let d = String(tel || '').replace(/\D/g, '').replace(/^0+/, '');
+    if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
+    if (d.length === 10 && /^[6-9]/.test(d.slice(2))) d = d.slice(0, 2) + '9' + d.slice(2); // celular antigo (8 dígitos)
+    return d.length === 11 && d[2] === '9' ? '55' + d : null;
+  };
+  const montarMensagem = (paciente) => MSG_WHATS
+    .replace('{paciente}', primeiroNome(paciente))
+    .replace('{operador}', eu.nome || '')
+    .replace('Olá, ,', 'Olá,'); // sem nome do paciente
+  let whatsPadrao = '';
+  const atualizarLinksWhats = () => {
+    const texto = $('whats-msg')?.value || '';
+    document.querySelectorAll('#whats-links a').forEach((a) => {
+      a.href = `https://wa.me/${a.dataset.numero}?text=${encodeURIComponent(texto)}`;
+    });
+  };
+  function limparWhats() {
+    if ($('whats-links')) $('whats-links').textContent = '';
+    if ($('whats-aviso')) $('whats-aviso').textContent = '';
+    if ($('whats-msg')) $('whats-msg').value = '';
+    $('whats')?.classList.add('hidden');
+  }
+  function mostrarWhats(telefones, paciente) {
+    if (!$('whats')) return;
+    limparWhats();
+    const vistos = new Set();
+    telefones.forEach((t) => {
+      const n = numeroWhats(t);
+      if (!n || vistos.has(n)) return;
+      vistos.add(n);
+      const link = document.createElement('a');
+      link.className = 'btn btn-whats btn-small';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.dataset.numero = n;
+      link.textContent = `💬 WhatsApp ${t}`;
+      $('whats-links').appendChild(link);
+    });
+    if (vistos.size) {
+      whatsPadrao = montarMensagem(paciente);
+      $('whats-msg').value = whatsPadrao;
+      atualizarLinksWhats();
+      $('whats').classList.remove('hidden');
+    } else if (telefones.length) {
+      $('whats-aviso').textContent = 'Nenhum número de celular para WhatsApp neste contato.';
+    }
+  }
+  $('whats-msg')?.addEventListener('input', atualizarLinksWhats);
+  $('whats-restaurar')?.addEventListener('click', () => { $('whats-msg').value = whatsPadrao; atualizarLinksWhats(); });
+
+
   const aviso = (texto, tipo = 'erro') => {
     const el = $('msg-form');
     if (!el) return;
@@ -39,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const limparForm = () => {
     form.reset();
     if ($('tel-extra')) $('tel-extra').textContent = '';
+    limparWhats();
   };
 
   function preencher(item) {
@@ -49,6 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('responsavel_familiar').value = item.nome_paciente || '';
     const tels = item.telefones?.length ? item.telefones : (item.telefone ? [item.telefone] : []);
     $('telefone_contato').value = tels[0] || '';
+    mostrarWhats(tels, item.nome_paciente);
     if ($('tel-extra')) $('tel-extra').textContent = tels.length > 1 ? 'Outro número: ' + tels.slice(1).join(' / ') : '';
     // Se o e-SUS tem data de última visita, ela vem preenchida (a pessoa confere na ligação)
     if (item.ultima_visita) {
@@ -90,6 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const veioDaExtensao = dadosDoContato.some((c) => params.get(c));
   if (veioDaExtensao) {
     dadosDoContato.forEach((c) => { if ($(c)) $(c).value = params.get(c) || ''; });
+    mostrarWhats(params.get('telefone_contato') ? [params.get('telefone_contato')] : [], params.get('responsavel_familiar'));
   }
   if (window.location.hash) history.replaceState(null, '', window.location.pathname);
   if (!veioDaExtensao) await carregarProximo();
