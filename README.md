@@ -87,7 +87,7 @@ Para publicar a chave do BI em produção, use `npx wrangler pages secret put BI
 Bancos criados antes da v2.8: rode `database/migracao-v2.8.sql` (um comando por vez).
 
 ## WhatsApp (v2.8.8)
-Na tela *Registrar ligação*, quando o contato tem **celular**, aparece o botão **💬 WhatsApp**. Ele abre uma janela com a
+Na tela *Registrar ligação*, quando o contato tem **celular**, aparece o **logotipo do WhatsApp** à direita do telefone. Ao clicar nele, abre uma janela com a
 mensagem inicial, que o operador pode **editar** (vale só para aquele contato) ou restaurar, e o botão *Abrir no WhatsApp*
 abre a conversa (`wa.me`). Contatos com mais de um celular ganham um seletor de número; telefones fixos não recebem o botão.
 
