@@ -86,8 +86,15 @@ Para publicar a chave do BI em produção, use `npx wrangler pages secret put BI
 
 Bancos criados antes da v2.8: rode `database/migracao-v2.8.sql` (um comando por vez).
 
-## WhatsApp (v2.8.6)
-Na tela *Registrar ligação*, cada número de **celular** do contato ganha o botão **💬 WhatsApp**. Ele abre a conversa
-(`wa.me`) com a mensagem inicial já preenchida: *"Olá, {paciente}, me chamo {operador}, falo do Departamento de Atenção
-Primária, da Secretaria de Saúde de Cajamar, tudo bem?"*. `{paciente}` é o primeiro nome do responsável familiar do e-SUS
-e `{operador}` é o nome do usuário logado. Telefones fixos não recebem o botão. O texto padrão fica na constante `MSG_WHATS` em `web-app/app.js`. Antes de abrir o WhatsApp, o operador pode **editar a mensagem** na caixa exibida abaixo do telefone (vale só para aquele contato) ou clicar em *Restaurar mensagem padrão*.
+## WhatsApp (v2.8.8)
+Na tela *Registrar ligação*, quando o contato tem **celular**, aparece o botão **💬 WhatsApp**. Ele abre uma janela com a
+mensagem inicial, que o operador pode **editar** (vale só para aquele contato) ou restaurar, e o botão *Abrir no WhatsApp*
+abre a conversa (`wa.me`). Contatos com mais de um celular ganham um seletor de número; telefones fixos não recebem o botão.
+
+A **mensagem padrão** é definida pelo administrador no menu superior **Mensagem WhatsApp** (`mensagem-whatsapp.html`) e vale
+para todos os operadores. Variáveis: `{paciente}` (primeiro nome do responsável familiar no e-SUS; se não houver nome, o
+trecho é removido) e `{operador}` (nome do usuário logado). Texto original: *"Olá, {paciente}, me chamo {operador}, falo do
+Departamento de Atenção Primária, da Secretaria de Saúde de Cajamar, tudo bem?"*.
+
+Banco: rode `database/migracao-v2.8.8.sql` (cria a tabela `configuracoes`). Enquanto não rodar, o sistema usa a mensagem
+original e a tela de edição avisa que não foi possível salvar.

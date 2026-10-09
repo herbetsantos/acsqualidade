@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (['admin', 'gestor', 'auditor'].includes(eu.perfil) && $('lnk-dashboard')) $('lnk-dashboard').classList.remove('hidden');
   if (eu.perfil === 'admin' && $('lnk-admin')) $('lnk-admin').classList.remove('hidden');
+  if (eu.perfil === 'admin' && $('lnk-whats')) $('lnk-whats').classList.remove('hidden');
 
   $('btn-logout')?.addEventListener('click', async () => {
     await fetch('/api/logout', { method: 'POST' }).catch(() => {});
@@ -28,8 +29,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let contatoAtual = null; // item do mailing em atendimento (null = modo manual)
 
-  // ---- WhatsApp: abre a conversa (wa.me) com a mensagem inicial padrão já preenchida ----
-  const MSG_WHATS = 'Olá, {paciente}, me chamo {operador}, falo do Departamento de Atenção Primária, da Secretaria de Saúde de Cajamar, tudo bem?';
+  // ---- WhatsApp: botão abre uma janela com a mensagem (editável) e o link wa.me ----
+  // A mensagem padrão é definida pelo administrador (menu "Mensagem WhatsApp"); se o servidor não responder, usa esta.
+  let templateWhats = 'Olá, {paciente}, me chamo {operador}, falo do Departamento de Atenção Primária, da Secretaria de Saúde de Cajamar, tudo bem?';
+  try {
+    const rc = await fetch('/api/config/whatsapp');
+    if (rc.ok) templateWhats = (await rc.json()).mensagem || templateWhats;
+  } catch { /* mantém a mensagem original */ }
+
   const primeiroNome = (n) => {
     const p = String(n || '').trim().split(/\s+/)[0] || '';
     return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
@@ -41,50 +48,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (d.length === 10 && /^[6-9]/.test(d.slice(2))) d = d.slice(0, 2) + '9' + d.slice(2); // celular antigo (8 dígitos)
     return d.length === 11 && d[2] === '9' ? '55' + d : null;
   };
-  const montarMensagem = (paciente) => MSG_WHATS
-    .replace('{paciente}', primeiroNome(paciente))
-    .replace('{operador}', eu.nome || '')
-    .replace('Olá, ,', 'Olá,'); // sem nome do paciente
+  const montarMensagem = (paciente) => {
+    const nome = primeiroNome(paciente);
+    let t = String(templateWhats);
+    t = nome ? t.replace(/\{paciente\}/g, () => nome) : t.replace(/,?\s*\{paciente\}/g, ''); // sem nome: remove o trecho
+    return t.replace(/\{operador\}/g, () => eu.nome || '').replace(/^[,\s]+/, '').trim();
+  };
+
   let whatsPadrao = '';
-  const atualizarLinksWhats = () => {
-    const texto = $('whats-msg')?.value || '';
-    document.querySelectorAll('#whats-links a').forEach((a) => {
-      a.href = `https://wa.me/${a.dataset.numero}?text=${encodeURIComponent(texto)}`;
-    });
+  const abrirModalWhats = () => { $('whats-modal').classList.remove('hidden'); $('whats-msg').focus(); };
+  const fecharModalWhats = () => $('whats-modal')?.classList.add('hidden');
+  const atualizarLinkWhats = () => {
+    $('whats-abrir').href = `https://wa.me/${$('whats-numero').value}?text=${encodeURIComponent($('whats-msg').value)}`;
   };
   function limparWhats() {
-    if ($('whats-links')) $('whats-links').textContent = '';
+    fecharModalWhats();
+    $('btn-whats')?.classList.add('hidden');
     if ($('whats-aviso')) $('whats-aviso').textContent = '';
+    if ($('whats-numero')) $('whats-numero').textContent = '';
     if ($('whats-msg')) $('whats-msg').value = '';
-    $('whats')?.classList.add('hidden');
   }
   function mostrarWhats(telefones, paciente) {
-    if (!$('whats')) return;
+    if (!$('btn-whats')) return;
     limparWhats();
     const vistos = new Set();
     telefones.forEach((t) => {
       const n = numeroWhats(t);
       if (!n || vistos.has(n)) return;
       vistos.add(n);
-      const link = document.createElement('a');
-      link.className = 'btn btn-whats btn-small';
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.dataset.numero = n;
-      link.textContent = `💬 WhatsApp ${t}`;
-      $('whats-links').appendChild(link);
+      const o = document.createElement('option');
+      o.value = n; o.textContent = t;
+      $('whats-numero').appendChild(o);
     });
     if (vistos.size) {
       whatsPadrao = montarMensagem(paciente);
       $('whats-msg').value = whatsPadrao;
-      atualizarLinksWhats();
-      $('whats').classList.remove('hidden');
+      $('whats-numero-grupo').classList.toggle('hidden', vistos.size < 2);
+      atualizarLinkWhats();
+      $('btn-whats').classList.remove('hidden');
     } else if (telefones.length) {
       $('whats-aviso').textContent = 'Nenhum número de celular para WhatsApp neste contato.';
     }
   }
-  $('whats-msg')?.addEventListener('input', atualizarLinksWhats);
-  $('whats-restaurar')?.addEventListener('click', () => { $('whats-msg').value = whatsPadrao; atualizarLinksWhats(); });
+  $('btn-whats')?.addEventListener('click', abrirModalWhats);
+  $('whats-fechar')?.addEventListener('click', fecharModalWhats);
+  $('whats-modal')?.addEventListener('click', (e) => { if (e.target === $('whats-modal')) fecharModalWhats(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharModalWhats(); });
+  $('whats-msg')?.addEventListener('input', atualizarLinkWhats);
+  $('whats-numero')?.addEventListener('change', atualizarLinkWhats);
+  $('whats-restaurar')?.addEventListener('click', () => { $('whats-msg').value = whatsPadrao; atualizarLinkWhats(); });
+  $('whats-abrir')?.addEventListener('click', () => setTimeout(fecharModalWhats, 200));
 
 
   const aviso = (texto, tipo = 'erro') => {

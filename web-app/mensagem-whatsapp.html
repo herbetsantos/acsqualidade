@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mensagem de WhatsApp — Pesquisa de Qualidade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=8">
+</head>
+<body>
+  <header class="app-topbar">
+    <div class="app-brand"><strong>Pesquisa de Qualidade</strong><span class="app-brand__divider"></span><span>Agente Comunitário de Saúde</span></div>
+    <div class="app-actions">
+      <span class="user-role">Administração</span>
+      <a class="btn btn-secondary" href="inquerito.html">Registrar ligação</a>
+      <a class="btn btn-secondary" href="mailings.html">Mailing territorial</a>
+      <a class="btn btn-secondary" href="admin.html">Usuários</a>
+      <button id="btn-logout" type="button" class="btn btn-secondary">Sair</button>
+    </div>
+  </header>
+  <main class="page page--narrow">
+    <div class="page__head">
+      <div class="eyebrow">Configuração</div>
+      <h1 class="page__title">Mensagem padrão do WhatsApp</h1>
+    </div>
+    <div id="msg" class="erro-msg hidden" role="status"></div>
+    <section class="card">
+      <h2 class="card-title">Texto inicial da conversa</h2>
+      <p class="hint">Use <strong>{paciente}</strong> (primeiro nome do responsável familiar no e-SUS) e <strong>{operador}</strong> (nome de quem está ligando). Se o contato não tiver nome, o trecho do paciente é removido. O operador ainda pode ajustar o texto de cada contato antes de abrir o WhatsApp.</p>
+      <div class="form-group"><label for="texto">Mensagem</label><textarea id="texto" rows="5" maxlength="1000"></textarea><small id="contador" class="hint"></small></div>
+      <div class="form-group"><label>Pré-visualização</label><div id="previa" class="previa"></div></div>
+      <div class="whats-acoes">
+        <button id="salvar" type="button" class="btn btn-primary">Salvar mensagem</button>
+        <button id="restaurar" type="button" class="btn btn-secondary">Restaurar mensagem original</button>
+      </div>
+    </section>
+  </main>
+<script>
+const $ = (id) => document.getElementById(id);
+let eu = null, original = '';
+function aviso(t, tipo = 'erro') { const el = $('msg'); if (!t) { el.classList.add('hidden'); return; } el.className = 'erro-msg' + (tipo === 'erro' ? '' : ' ' + tipo); el.textContent = t; }
+function atualizar() {
+  const t = $('texto').value;
+  $('contador').textContent = `${t.length}/1000 caracteres`;
+  $('previa').textContent = t.replace(/\{paciente\}/g, () => 'Maria').replace(/\{operador\}/g, () => eu?.nome || 'Operador').trim();
+}
+$('texto').addEventListener('input', atualizar);
+$('restaurar').onclick = () => { $('texto').value = original; atualizar(); aviso('Mensagem original restaurada na caixa. Clique em "Salvar mensagem" para aplicar.', 'info'); };
+$('salvar').onclick = async () => {
+  const mensagem = $('texto').value.trim();
+  if (!mensagem) return aviso('A mensagem não pode ficar vazia.');
+  $('salvar').disabled = true;
+  try {
+    const r = await fetch('/api/config/whatsapp', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mensagem }) });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) return location.replace('index.html');
+    if (!r.ok) return aviso(d.mensagem || `Erro ao salvar (HTTP ${r.status}).`);
+    aviso('Mensagem salva. Já vale para todos os operadores no próximo contato carregado.', 'ok');
+  } catch { aviso('Erro na comunicação com o servidor.'); }
+  finally { $('salvar').disabled = false; }
+};
+$('btn-logout').onclick = async () => { await fetch('/api/logout', { method: 'POST' }).catch(() => {}); location.href = 'index.html'; };
+(async () => {
+  try {
+    const r = await fetch('/api/me');
+    if (!r.ok) return location.replace('index.html');
+    eu = await r.json();
+    if (eu.perfil !== 'admin') return location.replace('inquerito.html');
+    const c = await fetch('/api/config/whatsapp'); const d = await c.json().catch(() => ({}));
+    original = d.padrao || d.mensagem || '';
+    $('texto').value = d.mensagem || original; atualizar();
+  } catch { aviso('Erro na comunicação com o servidor.'); }
+})();
+</script>
+</body>
+</html>

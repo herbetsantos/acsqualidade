@@ -6,7 +6,7 @@
   <title>Registrar ligação — Pesquisa de Qualidade - Agente Comunitário de Saúde</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <header class="app-topbar">
@@ -14,6 +14,7 @@
     <div class="app-actions">
       <a id="lnk-dashboard" class="btn btn-secondary hidden" href="dashboard.html">Painel de gestão</a>
       <a id="lnk-admin" class="btn btn-secondary hidden" href="admin.html">Usuários</a>
+      <a id="lnk-whats" class="btn btn-secondary hidden" href="mensagem-whatsapp.html">Mensagem WhatsApp</a>
       <button id="btn-logout" class="btn btn-secondary" type="button">Sair</button>
     </div>
   </header>
@@ -38,12 +39,7 @@
         <div class="form-group"><label for="endereco_pec">Endereço (e-SUS)</label><input type="text" id="endereco_pec" readonly></div>
         <div class="form-group"><label for="responsavel_familiar">Responsável familiar</label><input type="text" id="responsavel_familiar" readonly></div>
         <div class="form-group"><label for="telefone_contato">Telefone</label><input type="text" id="telefone_contato" readonly><small id="tel-extra" class="hint"></small><small id="whats-aviso" class="hint"></small>
-          <div id="whats" class="whats hidden">
-            <label for="whats-msg">Mensagem de WhatsApp (pode editar antes de abrir)</label>
-            <textarea id="whats-msg" rows="4" maxlength="1000"></textarea>
-            <div id="whats-links" class="whats__links"></div>
-            <button type="button" id="whats-restaurar" class="btn btn-secondary btn-small">Restaurar mensagem padrão</button>
-          </div></div>
+          <button type="button" id="btn-whats" class="btn btn-whats btn-small hidden">💬 WhatsApp</button></div>
         <div class="form-group">
           <label for="status_ligacao">Resultado da ligação *</label>
           <select id="status_ligacao" required>
@@ -74,6 +70,18 @@
       <button type="submit" class="btn btn-primary">Salvar pesquisa</button>
     </form>
   </main>
+  <div id="whats-modal" class="modal-backdrop whats-modal hidden" role="dialog" aria-modal="true" aria-labelledby="whats-titulo">
+    <div class="modal-card">
+      <div class="modal-head"><div><div class="eyebrow">WhatsApp</div><h2 id="whats-titulo">Mensagem inicial</h2></div></div>
+      <div id="whats-numero-grupo" class="form-group hidden"><label for="whats-numero">Enviar para</label><select id="whats-numero"></select></div>
+      <div class="form-group"><label for="whats-msg">Mensagem (pode editar antes de abrir)</label><textarea id="whats-msg" rows="5" maxlength="1000"></textarea></div>
+      <div class="modal-actions">
+        <button type="button" id="whats-restaurar" class="btn btn-secondary">Restaurar padrão</button>
+        <button type="button" id="whats-fechar" class="btn btn-secondary">Fechar</button>
+        <a id="whats-abrir" class="btn btn-whats" target="_blank" rel="noopener noreferrer">Abrir no WhatsApp</a>
+      </div>
+    </div>
+  </div>
   <script src="app.js"></script>
 </body>
 </html>

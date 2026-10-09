@@ -88,3 +88,11 @@ CREATE TABLE IF NOT EXISTS campanha_mailing (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_campanha_mailing ON campanha_mailing(campanha_id, chave_externa);
 CREATE INDEX IF NOT EXISTS idx_campanha_mailing_campanha ON campanha_mailing(campanha_id, status);
 CREATE INDEX IF NOT EXISTS idx_campanha_mailing_territorio ON campanha_mailing(campanha_id, equipe, microarea);
+
+-- Configurações gerais (ex.: mensagem padrão do WhatsApp)
+CREATE TABLE IF NOT EXISTS configuracoes (
+    chave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL,
+    atualizado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+    atualizado_por INTEGER
+);
