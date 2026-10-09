@@ -17,9 +17,10 @@
 <div id="import-status" class="erro-msg hidden"></div>
 </section>
 <section class="panel">
-<h2>2. Definir composição da campanha</h2>
+<h2>2. Definir destino e composição</h2>
 <div class="form-grid">
-<div class="form-group"><label>Nome da campanha *</label><input id="nome" placeholder="Pesquisa Territorial — Outubro/2026"></div>
+<div class="form-group"><label>Destino do mailing</label><select id="destino"><option value="">Criar nova campanha</option></select><small class="hint">Para completar um mailing incompleto, escolha a campanha: contatos já existentes são rejeitados (duplicados) e só os novos são adicionados.</small></div>
+<div id="grupo-nome" class="form-group"><label>Nome da campanha *</label><input id="nome" placeholder="Pesquisa Territorial — Outubro/2026"></div>
 <div class="form-group"><label>Unidade</label><input id="unidade" readonly></div>
 </div>
 <div><div><label><strong>Composição por equipe e microárea</strong></label><div id="composicao" class="checklist">Importe o mailing primeiro.</div></div></div>
@@ -68,13 +69,44 @@ $('criar').onclick=async()=>{
  if(!importado?.itens?.length)return msg('Importe primeiro o mailing da extensão.');
  const selecoes=[...document.querySelectorAll('.pair:checked')].map(x=>({equipe:x.dataset.equipe==='Equipe não identificada'?'':x.dataset.equipe,microarea:x.value==='Microárea não identificada'?'':x.value}));
  if(!selecoes.length)return msg('Selecione ao menos uma equipe e uma microárea.');
- const nome=$('nome').value.trim();if(!nome)return msg('Informe o nome da campanha.');
- const r=await fetch('/api/admin/campanhas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,unidade:$('unidade').value,composicao:{selecoes}})});
- const d=await r.json().catch(()=>({}));if(!r.ok)return msg(d.mensagem||'Erro ao criar campanha.');
- const ri=await fetch('/api/admin/campanhas/importar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({campanha_id:d.id,itens:importado.itens})});
- const di=await ri.json().catch(()=>({}));if(!ri.ok)return msg(di.mensagem||'Campanha criada, mas houve erro na importação.');
- msg(`${di.mensagem} A campanha está disponível para gestão.`,true);carregar();
+ const destino=$('destino').value;
+ const hdr={'Content-Type':'application/json'};
+ let campanhaId=Number(destino)||0;
+ if(!campanhaId){
+  const nome=$('nome').value.trim();if(!nome)return msg('Informe o nome da campanha.');
+  const r=await fetch('/api/admin/campanhas',{method:'POST',headers:hdr,body:JSON.stringify({nome,unidade:$('unidade').value,composicao:{selecoes}})});
+  const d=await r.json().catch(()=>({}));if(!r.ok)return msg(d.mensagem||'Erro ao criar campanha.');
+  campanhaId=d.id;
+ }
+ const marcadas=new Set(selecoes.map(s=>`${s.equipe}|||${s.microarea}`));
+ const itens=importado.itens.filter(x=>marcadas.has(`${(x.equipe||'').trim()}|||${(x.microarea||'').trim()}`));
+ const tot={inseridos:0,duplicados:0,fora_composicao:0,sem_chave:0},TAM=200;
+ $('criar').disabled=true;
+ try{
+  for(let i=0;i<itens.length;i+=TAM){
+   msg(`Enviando ${Math.min(i+TAM,itens.length)} de ${itens.length}…`,'info');
+   const ri=await fetch('/api/admin/campanhas/importar',{method:'POST',headers:hdr,body:JSON.stringify({campanha_id:campanhaId,selecoes,itens:itens.slice(i,i+TAM)})});
+   const di=await ri.json().catch(()=>({}));
+   if(!ri.ok){carregar();return msg(`${di.mensagem||'Erro na importação.'} Já gravados nesta tentativa: ${tot.inseridos}. Para continuar, escolha esta campanha em "Destino do mailing" e importe de novo: o que já foi gravado será rejeitado como duplicado.`);}
+   for(const k in tot)tot[k]+=di[k]||0;
+  }
+ }finally{$('criar').disabled=false;}
+ const extra=[tot.duplicados?`${tot.duplicados} duplicado(s) rejeitado(s)`:'',tot.fora_composicao?`${tot.fora_composicao} fora da composição`:'',tot.sem_chave?`${tot.sem_chave} sem identificador`:''].filter(Boolean).join(' · ');
+ msg(`${tot.inseridos} contato(s) novo(s) adicionado(s)${extra?' · '+extra:''}. A campanha está disponível para gestão.`,true);carregar();
 };
+function preencherDestino(camps){
+ const sel=$('destino'),atual=sel.value;
+ sel.innerHTML='<option value="">Criar nova campanha</option>'+camps.filter(c=>c.status==='ativa').map(c=>`<option value="${c.id}" data-unidade="${esc(c.unidade||'')}">Complementar: ${esc(c.nome)} (${c.total||0} contatos)</option>`).join('');
+ if([...sel.options].some(o=>o.value===atual))sel.value=atual;
+ aplicarDestino();
+}
+function aplicarDestino(){
+ const sel=$('destino'),existente=!!sel.value;
+ $('grupo-nome').classList.toggle('hidden',existente);
+ if(existente)$('unidade').value=sel.selectedOptions[0].dataset.unidade||$('unidade').value;
+ $('criar').textContent=existente?'Adicionar ao mailing da campanha (duplicados são rejeitados)':'Criar campanha e gerar mailing';
+}
+$('destino').onchange=aplicarDestino;
 async function verMailing(c){
  const box=$('mailing-detalhe'); box.classList.remove('hidden'); $('detalhe-titulo').textContent=`Itens do mailing — ${c.nome}`;
  const r=await fetch(`/api/admin/campanhas/itens?campanha_id=${encodeURIComponent(c.id)}&limit=500`); const d=await r.json().catch(()=>({}));
@@ -96,7 +128,7 @@ async function excluirCampanha(c){
  $('mailing-detalhe').classList.add('hidden');
  msg(d.mensagem,true);carregar();
 }
-async function carregar(){const r=await fetch('/api/admin/campanhas');if(!r.ok)return;const d=await r.json();$('tabela').querySelector('tbody').innerHTML=(d.campanhas||[]).map(c=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.unidade||'—')}</td><td>${c.total||0}</td><td>${c.concluidos||0}</td><td>${c.pendentes||0}</td><td>${esc(c.status)}</td><td><button class="btn btn-secondary" type="button" data-campanha="${c.id}">Ver</button> <a class="btn btn-secondary" href="/api/export/mailing.csv?campanha_id=${encodeURIComponent(c.id)}">CSV</a> <button class="btn btn-danger" type="button" data-excluir="${c.id}">Excluir campanha</button></td></tr>`).join(''); document.querySelectorAll('[data-excluir]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.excluir);if(c)excluirCampanha(c);}); document.querySelectorAll('[data-campanha]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.campanha);if(c)verMailing(c);}); const q=new URLSearchParams(location.search).get('campanha_id'); if(q){const c=(d.campanhas||[]).find(x=>String(x.id)===q);if(c)verMailing(c);}}
+async function carregar(){const r=await fetch('/api/admin/campanhas');if(!r.ok)return;const d=await r.json();preencherDestino(d.campanhas||[]);$('tabela').querySelector('tbody').innerHTML=(d.campanhas||[]).map(c=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.unidade||'—')}</td><td>${c.total||0}</td><td>${c.concluidos||0}</td><td>${c.pendentes||0}</td><td>${esc(c.status)}</td><td><button class="btn btn-secondary" type="button" data-campanha="${c.id}">Ver</button> <a class="btn btn-secondary" href="/api/export/mailing.csv?campanha_id=${encodeURIComponent(c.id)}">CSV</a> <button class="btn btn-danger" type="button" data-excluir="${c.id}">Excluir campanha</button></td></tr>`).join(''); document.querySelectorAll('[data-excluir]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.excluir);if(c)excluirCampanha(c);}); document.querySelectorAll('[data-campanha]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.campanha);if(c)verMailing(c);}); const q=new URLSearchParams(location.search).get('campanha_id'); if(q){const c=(d.campanhas||[]).find(x=>String(x.id)===q);if(c)verMailing(c);}}
 $('logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location.href='index.html';};
 (async()=>{const r=await fetch('/api/me');const u=await r.json().catch(()=>({}));if(!r.ok||u.perfil!=='admin')location.href='inquerito.html';else carregar();})();
 </script>

@@ -98,3 +98,11 @@ Departamento de Atenção Primária, da Secretaria de Saúde de Cajamar, tudo be
 
 Banco: rode `database/migracao-v2.8.8.sql` (cria a tabela `configuracoes`). Enquanto não rodar, o sistema usa a mensagem
 original e a tela de edição avisa que não foi possível salvar.
+
+## Completar um mailing e rejeitar duplicados (v2.8.10)
+Em *Mailing territorial*, o campo **Destino do mailing** permite **complementar uma campanha existente** em vez de criar outra.
+Cada contato é identificado pelo link da casa no PEC (`chave_externa`), com índice único por campanha: contatos que já existem
+são **rejeitados como duplicados** (e não são alterados: status, operador e resultado da ligação ficam preservados). Só os novos
+são adicionados, e a mensagem final informa quantos foram adicionados e quantos duplicados foram rejeitados. Novas equipes/microáreas
+marcadas passam a fazer parte da composição da campanha. O envio é feito em lotes de 200 contatos (batch no D1), o que evita o
+limite de consultas por requisição. Se um envio for interrompido, basta repetir escolhendo a mesma campanha.
