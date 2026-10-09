@@ -20,7 +20,7 @@ export async function onRequestDelete({ request, env }) {
     const atual = (await env.DB.prepare(
       'SELECT COUNT(*) AS n FROM inqueritos WHERE acs_nome IS ? AND microarea IS ?'
     ).bind(acs, micro).first())?.n || 0;
-    if (atual === 0) return json({ mensagem: 'Nenhum inquérito encontrado para este acompanhamento.' }, 404);
+    if (atual === 0) return json({ mensagem: 'Nenhuma pesquisa encontrada para este acompanhamento.' }, 404);
     if (atual !== esperado) {
       return json({ mensagem: `Os dados mudaram desde a consulta (${atual} registro(s) agora, ${esperado} exibido(s)). Atualize a página e tente novamente.`, atual }, 409);
     }
@@ -28,7 +28,7 @@ export async function onRequestDelete({ request, env }) {
     const r = await env.DB.prepare('DELETE FROM inqueritos WHERE acs_nome IS ? AND microarea IS ?').bind(acs, micro).run();
     const excluidos = r.meta?.changes ?? atual;
     console.log(`acompanhamento excluído: acs=${acs ?? 'NULL'} microarea=${micro ?? 'NULL'} inqueritos=${excluidos} usuario=${usuario.id}`);
-    return json({ mensagem: `${excluidos} inquérito(s) excluído(s).`, excluidos });
+    return json({ mensagem: `${excluidos} pesquisa(s) excluída(s).`, excluidos });
   } catch (err) {
     console.error('exclusao acompanhamento:', err);
     return json({ mensagem: `Erro ao excluir acompanhamento: ${String(err?.message || err).slice(0, 200)}` }, 500);

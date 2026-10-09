@@ -63,7 +63,7 @@ export async function onRequestDelete({ request, env }) {
     }
     if (vinculados > 0 && !forcar) {
       return json({
-        mensagem: `A campanha possui ${vinculados} inquérito(s) vinculado(s). Confirme para excluir o mailing e manter os inquéritos sem vínculo com o contato.`,
+        mensagem: `A campanha possui ${vinculados} pesquisa(s) vinculada(s). Confirme para excluir o mailing e manter as pesquisas sem vínculo com o contato.`,
         requer_confirmacao: true,
         inqueritos_vinculados: vinculados
       }, 409);

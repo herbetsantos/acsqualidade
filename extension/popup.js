@@ -18,7 +18,7 @@ async function verificarPerfil() {
       if (me.perfil !== 'admin') {
         podeGerar = false;
         $('btnGerar').disabled = true; $('btnRetomar').disabled = true;
-        status('Somente o perfil administrador gera o mailing. Entre como administrador no Inquérito.');
+        status('Somente o perfil administrador gera o mailing. Entre como administrador na Pesquisa de Qualidade.');
       }
       return;
     }
@@ -122,7 +122,7 @@ function resumo(p) {
   const partes = [`${p.coletados || 0} contatos com telefone`];
   if (p.semTelefone) partes.push(`${p.semTelefone} sem telefone (ignorados)`);
   if (p.errors) partes.push(`${p.errors} erro(s)${p.ultimoErro ? ': ' + p.ultimoErro : ''}`);
-  return partes.join(' · ');
+  return partes.join(' · ') + (p.aviso ? '\n' + p.aviso : '');
 }
 
 function monitorarColeta(jobId) {
@@ -145,7 +145,7 @@ function monitorarColeta(jobId) {
         status(`Coleta interrompida (a página foi atualizada ou travou). O que já foi lido está guardado.\nVolte à lista do Acompanhamento do território e clique em "Continuar coleta interrompida".\n${resumo(p)}`);
         return;
       }
-      status(`${p.current || p.phase}\n${resumo(p)}${p.phase === 'concluido' || p.phase === 'cancelado' ? '\nAgora importe o mailing na página Mailing do Inquérito.' : ''}`);
+      status(`${p.current || p.phase}\n${resumo(p)}${p.phase === 'concluido' || p.phase === 'cancelado' ? '\nAgora importe o mailing na página Mailing da Pesquisa de Qualidade.' : ''}`);
     } catch (_) {}
   }, 1200);
 }

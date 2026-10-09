@@ -123,10 +123,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (contatoAtual) {
         const quem = contatoAtual.nome_paciente || contatoAtual.endereco || 'contato';
         const temProximo = await carregarProximo();
-        if (temProximo) aviso(`Inquérito de "${quem}" salvo. Próximo contato carregado.`, 'ok');
+        if (temProximo) aviso(`Pesquisa de "${quem}" salva. Próximo contato carregado.`, 'ok');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        aviso('Inquérito registrado com sucesso!', 'ok');
+        aviso('Pesquisa registrada com sucesso!', 'ok');
         limparForm();
       }
     } catch {

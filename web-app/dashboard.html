@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Painel de Gestão - Inquérito ACS</title>
+  <title>Painel de Gestão - Pesquisa de Qualidade - Agente Comunitário de Saúde</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <header class="app-topbar">
-    <div class="app-brand"><strong>Inquérito</strong><span class="app-brand__divider"></span><span>ACS</span></div>
+    <div class="app-brand"><strong>Pesquisa de Qualidade</strong><span class="app-brand__divider"></span><span>Agente Comunitário de Saúde</span></div>
     <div class="app-actions">
       <a id="lnk-admin" class="btn btn-secondary hidden" href="admin.html">Usuários</a><a id="lnk-mailing" class="btn btn-secondary hidden" href="mailings.html">Mailing territorial</a>
       <span id="user-role" class="user-role">Perfil</span>
@@ -32,7 +32,7 @@
           <p style="margin:6px 0 0">Baixe os dados disponíveis para o seu perfil em CSV.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <a class="btn btn-primary" href="/api/export/inqueritos.csv">Exportar inquéritos CSV</a>
+          <a class="btn btn-primary" href="/api/export/inqueritos.csv">Exportar pesquisas CSV</a>
           <a class="btn btn-secondary" href="/api/export/campanhas.csv">Exportar campanhas CSV</a>
         </div>
       </div>
@@ -88,7 +88,7 @@
     function esc(v){ return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
     async function excluirAcompanhamento(r) {
       const rotulo = `${r.acs_nome} — microárea ${r.microarea}`;
-      if (!confirm(`Excluir os ${r.total} inquérito(s) do acompanhamento "${rotulo}"?\n\nA exclusão é permanente e remove as respostas registradas (as divergências e médias deixam de considerá-las). Recomenda-se exportar o CSV de inquéritos antes.`)) return;
+      if (!confirm(`Excluir as ${r.total} pesquisa(s) do acompanhamento "${rotulo}"?\n\nA exclusão é permanente e remove as respostas registradas (as divergências e médias deixam de considerá-las). Recomenda-se exportar o CSV de pesquisas antes.`)) return;
       const q = new URLSearchParams({ esperado: String(r.total) });
       if (r.acs_raw == null) q.set('acs_nulo', '1'); else q.set('acs_nome', r.acs_raw);
       if (r.microarea_raw == null) q.set('microarea_nula', '1'); else q.set('microarea', r.microarea_raw);

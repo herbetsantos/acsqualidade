@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "e-SUS PEC - Extensão de Inquérito",
+  "name": "e-SUS PEC - Extensão da Pesquisa de Qualidade",
   "version": "2.8.2",
-  "description": "Captura estruturada do acompanhamento territorial do e-SUS PEC e gera mailing territorial para o Inquérito ACS.",
+  "description": "Captura estruturada do acompanhamento territorial do e-SUS PEC e gera mailing territorial para a Pesquisa de Qualidade - Agente Comunitário de Saúde.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -15,7 +15,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Inquérito e-SUS PEC"
+    "default_title": "Pesquisa de Qualidade — e-SUS PEC"
   },
   "background": {
     "service_worker": "background.js"

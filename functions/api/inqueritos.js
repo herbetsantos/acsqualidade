@@ -46,9 +46,9 @@ export async function onRequestPost({ request, env }) {
       }
     }
 
-    return json({ mensagem: 'Inquérito gravado com sucesso!' }, 201);
+    return json({ mensagem: 'Pesquisa gravada com sucesso!' }, 201);
   } catch (err) {
     console.error('inqueritos:', err);
-    return json({ mensagem: 'Erro ao salvar inquérito.' }, 500);
+    return json({ mensagem: 'Erro ao salvar pesquisa.' }, 500);
   }
 }

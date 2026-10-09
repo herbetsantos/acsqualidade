@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Inquérito ACS — identidade visual
+   Pesquisa de Qualidade - Agente Comunitário de Saúde — identidade visual
    Paleta, tipografia, espaçamentos e componentes (Montserrat, azul + verde)
    ========================================================================== */
 :root {
@@ -282,8 +282,9 @@ tbody tr:hover { background: var(--surface); }
 }
 @media (max-width: 760px) {
   .app-topbar { padding: 0 14px; }
-  .app-brand { font-size: 15px; }
-  .app-brand strong { font-size: 18px; }
+  .app-brand { font-size: 12px; flex-direction: column; align-items: flex-start; gap: 0; white-space: normal; line-height: 1.15; }
+  .app-brand strong { font-size: 16px; }
+  .app-brand__divider { display: none; }
   .user-role { display: none; }
   .page { padding: calc(var(--topbar-h) + 24px) 16px 60px; }
   .card { padding: 20px 16px; }

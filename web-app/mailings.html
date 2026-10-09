@@ -2,14 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Mailing territorial — Inquérito ACS</title>
-<link rel="stylesheet" href="styles.css?v=4">
+<title>Mailing territorial — Pesquisa de Qualidade - Agente Comunitário de Saúde</title>
+<link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
-<header class="app-topbar"><div class="app-brand"><strong>Inquérito</strong><span class="app-brand__divider"></span><span>ACS</span></div>
+<header class="app-topbar"><div class="app-brand"><strong>Pesquisa de Qualidade</strong><span class="app-brand__divider"></span><span>Agente Comunitário de Saúde</span></div>
 <div class="app-actions"><span class="user-role">Administrador</span><a class="btn btn-secondary" href="admin.html">Usuários</a><a class="btn btn-secondary" href="dashboard.html">Painel</a><button id="logout" class="btn btn-secondary">Sair</button></div></header>
 <main class="page">
-<div class="page__head"><div><div class="eyebrow">Gestão territorial</div><h1 class="page__title">Mailing de inquéritos</h1></div></div>
+<div class="page__head"><div><div class="eyebrow">Gestão territorial</div><h1 class="page__title">Mailing de pesquisas</h1></div></div>
 <section class="panel">
 <h2>1. Importar população da extensão</h2>
 <p>Abra no e-SUS a tela <strong>Acompanhamento do território</strong>, use a extensão para selecionar as microáreas e gerar o mailing. Depois clique abaixo.</p>
@@ -19,7 +19,7 @@
 <section class="panel">
 <h2>2. Definir composição da campanha</h2>
 <div class="form-grid">
-<div class="form-group"><label>Nome da campanha *</label><input id="nome" placeholder="Inquérito Territorial — Outubro/2026"></div>
+<div class="form-group"><label>Nome da campanha *</label><input id="nome" placeholder="Pesquisa Territorial — Outubro/2026"></div>
 <div class="form-group"><label>Unidade</label><input id="unidade" readonly></div>
 </div>
 <div><div><label><strong>Composição por equipe e microárea</strong></label><div id="composicao" class="checklist">Importe o mailing primeiro.</div></div></div>
@@ -88,7 +88,7 @@ async function excluirCampanha(c){
  let r=await fetch(`/api/admin/campanhas?id=${encodeURIComponent(c.id)}`,{method:'DELETE'});
  let d=await r.json().catch(()=>({}));
  if(r.status===409&&d.requer_confirmacao){
-  if(!confirm(`${d.mensagem}\n\nOs inquéritos continuarão registrados, porém sem vínculo com o contato do mailing. Confirmar a exclusão?`))return;
+  if(!confirm(`${d.mensagem}\n\nAs pesquisas continuarão registradas, porém sem vínculo com o contato do mailing. Confirmar a exclusão?`))return;
   r=await fetch(`/api/admin/campanhas?id=${encodeURIComponent(c.id)}&forcar=true`,{method:'DELETE'});
   d=await r.json().catch(()=>({}));
  }

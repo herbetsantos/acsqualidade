@@ -68,10 +68,47 @@ async function crawlNaPagina(cfg) {
     }
     return LISTA.test(location.pathname);
   }
-  async function prepararLista(micro) {
+  // ---- Paginação das ruas: o PEC mostra cerca de 10 ruas por página ----
+  const assinatura = () => grupos().map((g) => g.titulo).join('|');
+  const paginacao = () => {
+    const raizes = [...document.querySelectorAll('nav, [aria-label*="pagin" i], [aria-label*="págin" i], [data-testid*="pagin" i], [class*="pagin" i]')];
+    for (const r of raizes) {
+      const itens = [...r.querySelectorAll('button, a, [role="button"]')]
+        .filter((e) => !e.closest('[data-accordion-component]') && !e.closest('[role="tablist"]') && e.getAttribute('role') !== 'tab');
+      const nums = itens.filter((e) => /^\d+$/.test(norm(e.textContent)));
+      if (nums.length) return { itens, nums };
+    }
+    return null;
+  };
+  const ativo = (e) => e && !e.disabled && e.getAttribute('aria-disabled') !== 'true';
+  const proxima = () => paginacao()?.itens.find((e) => ativo(e) && /pr[óo]xim|next|^[›»>]$/i.test(norm(e.getAttribute('aria-label') || e.title || e.textContent))) || null;
+  async function mudarPagina(el) {
+    const antes = assinatura();
+    el.click();
+    const ok = await esperar(() => { const a = assinatura(); return a && a !== antes; }, 8000);
+    await sleep(500);
+    return !!ok;
+  }
+  const eAtual = (e) => e.disabled || e.hasAttribute('aria-current') || e.getAttribute('aria-selected') === 'true' || /active|selected|current/i.test(e.className + ' ' + (e.parentElement?.className || ''));
+  async function irParaPagina(n) {
+    const pg = paginacao();
+    if (!pg) return n === 1;
+    const direto = pg.nums.find((e) => +norm(e.textContent) === n);
+    if (direto) { if (!eAtual(direto)) await mudarPagina(direto); return true; }
+    // número escondido atrás de "…": volta à primeira e avança passo a passo
+    const um = pg.nums.find((e) => +norm(e.textContent) === 1);
+    if (um && !eAtual(um)) await mudarPagina(um);
+    for (let i = 1; i < n; i++) { const px = proxima(); if (!px || !(await mudarPagina(px))) return false; }
+    return true;
+  }
+
+  async function prepararLista(micro, titulo, pagina = 1) {
     if (!LISTA.test(location.pathname)) await voltarParaLista();
     const aba = abaDe(micro);
     if (!aba || aba.getAttribute('tabindex') !== '0') await garantirMicro(micro);
+    // Ao voltar da casa a lista pode reabrir na página 1: confere se a rua da casa está na tela e, se não, vai até a página dela
+    await esperar(() => grupos().length, 6000);
+    if (titulo && !grupos().some((g) => g.titulo === titulo)) await irParaPagina(pagina);
     if (!document.querySelector(ROW) || document.querySelector(`${BTN_GRUPO}[aria-expanded="false"]`)) {
       await abrirGrupos();
       await esperar(() => document.querySelector(ROW), 8000);
@@ -129,18 +166,41 @@ async function crawlNaPagina(cfg) {
     // 1) Planejamento: quantas casas há em cada microárea
     await salvarProg({ phase: 'preparo', current: 'Contando as casas…' });
     const plano = [];
+    const avisos = [];
     for (const micro of cfg.microareas) {
-      await salvarProg({ current: `Contando as casas da microárea ${micro}…` });
+      await salvarProg({ current: `Contando as casas (${micro})…` });
       if (!(await garantirMicro(micro))) { prog.errors++; prog.ultimoErro = `Aba da microárea ${micro} não encontrada.`; continue; }
-      await abrirGrupos();
-      for (const g of grupos()) {
-        [...g.el.querySelectorAll(ROW)].forEach((row, idx) => {
-          const ver = norm(row.innerText).slice(0, 100);
-          plano.push({ micro, titulo: g.titulo, idx, ver, resp: valor('Responsável familiar', row), sig: `${micro}|${g.titulo}|${idx}|${ver}` });
-        });
+      await irParaPagina(1);
+      const antes = plano.length;
+      const esperado = (t) => { const m = [...String(t).matchAll(/(\d+)\s*im[óo]veis?/gi)].pop(); return m ? +m[1] : null; };
+      for (let pagina = 1; pagina <= 80; pagina++) {
+        await salvarProg({ current: `Contando as casas (${micro}) — página ${pagina} das ruas…` });
+        await abrirGrupos();
+        // Cada título de grupo informa quantos imóveis ele tem ("... 39 imóveis"). Espera a lista terminar de
+        // desenhar até bater com esse número e, se não bater, avisa em vez de seguir com contagem incompleta.
+        for (const g0 of grupos()) {
+          const esp = esperado(g0.titulo);
+          if (esp == null) continue;
+          await esperar(() => (grupos().find((x) => x.titulo === g0.titulo)?.el.querySelectorAll(ROW).length || 0) >= esp, 8000);
+        }
+        for (const g of grupos()) {
+          const esp = esperado(g.titulo), lidas = g.el.querySelectorAll(ROW).length;
+          if (esp != null && lidas !== esp) { avisos.push(`${micro}: "${g.titulo.slice(0, 40)}" tem ${esp} imóveis e a extensão leu ${lidas}`); }
+          [...g.el.querySelectorAll(ROW)].forEach((row, idx) => {
+            const ver = norm(row.innerText).slice(0, 100);
+            plano.push({ micro, pagina, titulo: g.titulo, idx, ver, resp: valor('Responsável familiar', row), sig: `${micro}|${g.titulo}|${idx}|${ver}` });
+          });
+        }
+        const px = proxima();
+        if (!px || !(await mudarPagina(px))) break;
       }
+      // Conferência final: o PEC informa o total de imóveis da microárea ("... (153 de 156)")
+      const tot = document.body.innerText.match(/Im[óo]veis com cadastro completo[^(]*\(\s*\d+\s*de\s*(\d+)\s*\)/i);
+      const achados = plano.length - antes;
+      if (tot && +tot[1] !== achados) avisos.push(`${micro}: o PEC informa ${tot[1]} imóveis e a extensão encontrou ${achados}`);
     }
     prog.total = plano.length;
+    prog.aviso = avisos.length ? `ATENÇÃO: contagem diferente do PEC em ${avisos.length} ponto(s) — ${avisos.slice(0, 3).join('; ')}` : '';
     if (!plano.length) { await terminar('erro', 'Nenhuma casa encontrada nas microáreas escolhidas.'); return; }
 
     // 2) Visita cada casa
@@ -149,9 +209,9 @@ async function crawlNaPagina(cfg) {
       n++;
       if (feitas.has(alvo.sig)) { prog.processed = n; continue; }
       if ((await chrome.storage.local.get('crawlCancel')).crawlCancel === cfg.jobId) { await terminar('cancelado', 'Coleta interrompida. O que já foi lido foi guardado.'); return; }
-      await salvarProg({ phase: 'casa', processed: n - 1, current: `Microárea ${alvo.micro}: casa ${n} de ${plano.length}` });
+      await salvarProg({ phase: 'casa', processed: n - 1, current: `${/^microárea/i.test(alvo.micro) ? alvo.micro : 'Microárea ' + alvo.micro}: casa ${n} de ${plano.length}` });
       try {
-        await prepararLista(alvo.micro);
+        await prepararLista(alvo.micro, alvo.titulo, alvo.pagina);
         // A lista pode demorar a redesenhar ao voltar da casa: tenta por alguns segundos e, se preciso, reabre os grupos
         let row = await esperar(() => linhaDe(alvo.titulo, alvo.idx, alvo.ver), 4000);
         if (!row) { await abrirGrupos(); row = await esperar(() => linhaDe(alvo.titulo, alvo.idx, alvo.ver), 6000); }
@@ -181,7 +241,7 @@ async function crawlNaPagina(cfg) {
         const g = grupos().find((x) => x.titulo === alvo.titulo);
         const diag = g ? ` [grupo achado; ${g.el.querySelectorAll(ROW).length} linhas na tela; esperada a nº ${alvo.idx + 1}]` : ` [grupo não achado; ${grupos().length} grupos na tela]`;
         falhas = falhas.filter((f) => f.sig !== alvo.sig);
-        falhas.push({ sig: alvo.sig, micro: alvo.micro, titulo: alvo.titulo, idx: alvo.idx, ver: alvo.ver, erro: e.message + diag });
+        falhas.push({ sig: alvo.sig, micro: alvo.micro, titulo: alvo.titulo, pagina: alvo.pagina, idx: alvo.idx, ver: alvo.ver, erro: e.message + diag });
       }
       await persistir(); // salva a cada casa: se a página travar, o "Continuar" retoma daqui
       await voltarParaLista();

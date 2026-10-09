@@ -1,4 +1,4 @@
-# Inquérito ACS
+# Pesquisa de Qualidade - Agente Comunitário de Saúde
 
 Cloudflare Pages + Pages Functions + D1.
 
@@ -32,11 +32,11 @@ Crie os usuários reais gerando o hash: `node scripts/hash.mjs "senha"` e inseri
 1. No e-SUS PEC, abra **Acompanhamento do território**.
 2. Clique na extensão e selecione a equipe/microáreas desejadas.
 3. Use **Gerar mailing das microáreas selecionadas**.
-4. No Inquérito, entre em **Administração → Mailing territorial**.
+4. Na Pesquisa de Qualidade, entre em **Administração → Mailing territorial**.
 5. Clique em **Importar mailing da extensão**, revise a composição por equipe/microárea e crie a campanha.
 6. O servidor grava a população da campanha no D1 e deduplica os registros pelo link/identificador externo.
 
-A extensão mantém temporariamente o mailing no `chrome.storage.local`. A importação para o servidor ocorre somente quando o administrador solicita na tela do Inquérito.
+A extensão mantém temporariamente o mailing no `chrome.storage.local`. A importação para o servidor ocorre somente quando o administrador solicita na tela da Pesquisa de Qualidade.
 
 ## Extensão 2.4 — varredura completa do território
 A extensão agora tenta, nesta ordem:
@@ -79,7 +79,7 @@ Para publicar a chave do BI em produção, use `npx wrangler pages secret put BI
 1. **Administrador** — no e-SUS (Acompanhamento do território), abre a extensão, escolhe as microáreas e clica em
    *Gerar mailing*. A extensão abre uma casa por vez (clica na lupa, lê telefone, última visita, equipe e ACS, volta
    para a lista). Pode parar e depois usar *Continuar coleta interrompida*.
-2. **Administrador** — em *Mailing* no Inquérito: importa o mailing da extensão, marca equipes/microáreas e cria a campanha.
+2. **Administrador** — em *Mailing* na Pesquisa de Qualidade: importa o mailing da extensão, marca equipes/microáreas e cria a campanha.
 3. **Operador** — não precisa da extensão. Ao abrir *Registrar ligação*, o sistema entrega o próximo contato pendente
    da campanha ativa; ao salvar, grava a resposta e já carrega o seguinte. *Pular contato* devolve o atual ao fim da fila.
    Contatos parados há mais de 30 minutos voltam para a fila.
