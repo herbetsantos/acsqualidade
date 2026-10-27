@@ -28,6 +28,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   const campos = [...dadosDoContato, ...respostas];
 
   let contatoAtual = null; // item do mailing em atendimento (null = modo manual)
+  let microareaOriginal = ''; // valor que veio do mailing/e-SUS, para sinalizar quando o operador alterar
+
+  const atualizarAvisoMicroarea = () => {
+    const el = $('microarea-aviso');
+    if (!el) return;
+    const atual = $('microarea').value.trim();
+    el.textContent = microareaOriginal && atual !== microareaOriginal
+      ? `Alterada pelo operador (original: ${microareaOriginal}).` : '';
+  };
+  $('microarea')?.addEventListener('input', atualizarAvisoMicroarea);
 
   // ---- WhatsApp: botão abre uma janela com a mensagem (editável) e o link wa.me ----
   // A mensagem padrão é definida pelo administrador (menu "Mensagem WhatsApp"); se o servidor não responder, usa esta.
@@ -110,6 +120,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const limparForm = () => {
     form.reset();
+    microareaOriginal = '';
+    if ($('microarea-aviso')) $('microarea-aviso').textContent = '';
     if ($('tel-extra')) $('tel-extra').textContent = '';
     limparWhats();
   };
@@ -117,6 +129,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function preencher(item) {
     limparForm();
     $('microarea').value = item.microarea || '';
+    microareaOriginal = (item.microarea || '').trim();
+    atualizarAvisoMicroarea();
     $('acs_nome').value = item.acs_nome || '';
     $('endereco_pec').value = item.endereco || '';
     $('responsavel_familiar').value = item.nome_paciente || '';
@@ -164,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const veioDaExtensao = dadosDoContato.some((c) => params.get(c));
   if (veioDaExtensao) {
     dadosDoContato.forEach((c) => { if ($(c)) $(c).value = params.get(c) || ''; });
+    microareaOriginal = ($('microarea')?.value || '').trim();
     mostrarWhats(params.get('telefone_contato') ? [params.get('telefone_contato')] : [], params.get('responsavel_familiar'));
   }
   if (window.location.hash) history.replaceState(null, '', window.location.pathname);
@@ -183,6 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
     const botao = form.querySelector('button[type="submit"]');
     const payload = Object.fromEntries(campos.map((c) => [c, $(c)?.value ?? '']));
+    payload.microarea = String(payload.microarea || '').trim();
     if (contatoAtual) payload.mailing_id = contatoAtual.id;
     if (botao) botao.disabled = true;
     try {
