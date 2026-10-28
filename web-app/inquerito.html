@@ -6,7 +6,7 @@
   <title>Registrar ligação — Pesquisa de Qualidade - Agente Comunitário de Saúde</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
   <header class="app-topbar">
@@ -28,13 +28,29 @@
         <div class="mailing-bar__titulo" id="mailing-titulo"></div>
         <div class="mailing-bar__info" id="mailing-info"></div>
       </div>
-      <button id="btn-pular" type="button" class="btn btn-secondary">Pular contato</button>
+      <div class="mailing-bar__acoes">
+        <button id="btn-filtro" type="button" class="btn btn-secondary" aria-expanded="false" aria-controls="filtro-mailing">Escolher mailing</button>
+        <button id="btn-pular" type="button" class="btn btn-secondary hidden">Pular contato</button>
+      </div>
     </div>
+    <section id="filtro-mailing" class="card hidden">
+      <h2 class="card-title">Com qual mailing trabalhar</h2>
+      <div class="form-group"><label for="f-campanha">Campanha</label><select id="f-campanha"></select></div>
+      <div class="form-group">
+        <label>Equipe e microárea</label>
+        <div id="f-territorios" class="checklist"></div>
+        <small class="hint">Marque as microáreas que quer atender. Sem nenhuma marcada, o giro percorre toda a campanha. Os números são de contatos pendentes. Escolhendo <strong>Todos os mailings ativos</strong>, os contatos são sorteados entre os mailings em giro.</small>
+      </div>
+      <div class="filtro-acoes">
+        <button id="f-limpar" type="button" class="btn btn-secondary">Limpar seleção</button>
+        <button id="f-aplicar" type="button" class="btn btn-primary">Aplicar e carregar contato</button>
+      </div>
+    </section>
     <div id="msg-form" class="erro-msg hidden" role="status"></div>
     <form id="form-inquerito" class="card">
       <h2 class="card-title">Dados do atendimento</h2>
       <div class="form-grid">
-        <div class="form-group"><label for="microarea">Microárea</label><input type="text" id="microarea" maxlength="10" autocomplete="off" placeholder="Ex.: 01"><small id="microarea-aviso" class="hint"></small></div>
+        <div class="form-group"><label for="microarea">Microárea</label><input type="text" id="microarea" readonly></div>
         <div class="form-group"><label for="acs_nome">ACS</label><input type="text" id="acs_nome" readonly></div>
         <div class="form-group"><label for="endereco_pec">Endereço (e-SUS)</label><input type="text" id="endereco_pec" readonly></div>
         <div class="form-group"><label for="responsavel_familiar">Responsável familiar</label><input type="text" id="responsavel_familiar" readonly></div>

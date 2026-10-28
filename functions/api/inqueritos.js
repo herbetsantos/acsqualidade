@@ -17,6 +17,14 @@ export async function onRequestPost({ request, env }) {
     if (satisf !== null && !(Number.isInteger(satisf) && satisf >= 0 && satisf <= 10)) {
       return json({ mensagem: 'Nível de satisfação deve ser um inteiro de 0 a 10.' }, 400);
     }
+    // Contato do mailing: a microárea é dado de origem (e-SUS) e não é editável pelo operador.
+    // Quando o inquérito vem de um contato do mailing atribuído a este operador, vale a microárea do mailing.
+    const mailingId = Number(d.mailing_id);
+    let microarea = txt(d.microarea, 10);
+    if (Number.isInteger(mailingId) && mailingId > 0) {
+      const origem = await env.DB.prepare('SELECT microarea FROM campanha_mailing WHERE id = ? AND operador_id = ?').bind(mailingId, usuario.id).first().catch(() => null);
+      if (origem) microarea = txt(origem.microarea, 10);
+    }
     const tri = (v) => (v === true || v === 'true' || v === 1 || v === '1' ? 1 : v === false || v === 'false' || v === 0 || v === '0' ? 0 : null);
 
     const gravado = await env.DB.prepare(`
@@ -27,14 +35,13 @@ export async function onRequestPost({ request, env }) {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       usuario.id,
-      txt(d.microarea, 10), txt(d.acs_nome, 100), txt(d.endereco_pec, 500),
+      microarea, txt(d.acs_nome, 100), txt(d.endereco_pec, 500),
       txt(d.responsavel_familiar, 100), txt(d.telefone_contato, 20),
       tri(d.visita_registrada_pec), txt(d.data_visita_pec, 10), tri(d.visita_relatada_paciente),
       d.status_ligacao, tri(d.conhece_agente), satisf, txt(d.observacoes, 2000)
     ).run();
 
     // Contato vindo do mailing: fecha o contato e registra o vínculo (falhas aqui não desfazem o inquérito já gravado)
-    const mailingId = Number(d.mailing_id);
     if (Number.isInteger(mailingId) && mailingId > 0) {
       const novo = d.status_ligacao === 'atendeu' ? 'concluido' : d.status_ligacao === 'recusou' ? 'recusou' : 'nao_localizado';
       await env.DB.prepare(

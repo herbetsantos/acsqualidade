@@ -7,9 +7,11 @@ export async function onRequestGet({ request, env }) {
   if (erro) return erro;
   const { results } = await env.DB.prepare(`
     SELECT c.id, c.nome, c.unidade, c.status, c.criado_em, p.nome AS criado_por_nome,
+           c.giro_interrompido, c.giro_interrompido_em,
            (SELECT COUNT(*) FROM campanha_mailing m WHERE m.campanha_id = c.id) AS total,
            (SELECT COUNT(*) FROM campanha_mailing m WHERE m.campanha_id = c.id AND m.status='concluido') AS concluidos,
-           (SELECT COUNT(*) FROM campanha_mailing m WHERE m.campanha_id = c.id AND m.status='pendente') AS pendentes
+           (SELECT COUNT(*) FROM campanha_mailing m WHERE m.campanha_id = c.id AND m.status='pendente') AS pendentes,
+           (SELECT COUNT(*) FROM campanha_mailing m WHERE m.campanha_id = c.id AND m.status='em_andamento') AS em_andamento
     FROM campanhas c
     LEFT JOIN profissionais p ON p.id = c.criado_por
     ORDER BY c.id DESC
@@ -32,6 +34,30 @@ export async function onRequestPost({ request, env }) {
     VALUES (?, ?, ?, ?)
   `).bind(nome, unidade, JSON.stringify(composicao), usuario.id).run();
   return json({ id: result.meta?.last_row_id, mensagem: 'Campanha criada com sucesso.' }, 201);
+}
+
+// Interrompe ou retoma o giro do mailing. Interromper NÃO apaga nada: apenas deixa de entregar
+// novos contatos aos operadores. Quem já está com um contato aberto consegue salvar a pesquisa.
+// Body: { id, interromper: true|false }
+export async function onRequestPatch({ request, env }) {
+  const { usuario, erro } = await exigirPermissao(request, env, 'usuarios.gerenciar');
+  if (erro) return erro;
+  const d = await request.json().catch(() => null);
+  const id = Number(d?.id);
+  if (!Number.isInteger(id) || id <= 0) return json({ mensagem: 'Campanha inválida.' }, 400);
+  if (typeof d?.interromper !== 'boolean') return json({ mensagem: 'Informe "interromper" como true ou false.' }, 400);
+
+  const camp = await env.DB.prepare('SELECT id, nome, status FROM campanhas WHERE id = ?').bind(id).first();
+  if (!camp) return json({ mensagem: 'Campanha não encontrada.' }, 404);
+
+  const r = d.interromper
+    ? await env.DB.prepare('UPDATE campanhas SET giro_interrompido = 1, giro_interrompido_em = CURRENT_TIMESTAMP, giro_interrompido_por = ? WHERE id = ?').bind(usuario.id, id).run()
+    : await env.DB.prepare('UPDATE campanhas SET giro_interrompido = 0, giro_interrompido_em = NULL, giro_interrompido_por = NULL WHERE id = ?').bind(id).run();
+  console.log(`campanha ${id} (${camp.nome}): giro ${d.interromper ? 'interrompido' : 'retomado'} por usuário ${usuario.id}`);
+  return json({
+    id, giro_interrompido: d.interromper, alteradas: r.meta?.changes || 0,
+    mensagem: d.interromper ? 'Giro interrompido. Nenhum novo contato será entregue aos operadores.' : 'Giro retomado.'
+  });
 }
 
 // Exclusão de campanha e de todo o seu mailing (dados pessoais: nome, CNS, CPF, telefone, endereço).

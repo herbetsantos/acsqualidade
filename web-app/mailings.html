@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Mailing territorial — Pesquisa de Qualidade - Agente Comunitário de Saúde</title>
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 <header class="app-topbar"><div class="app-brand"><strong>Pesquisa de Qualidade</strong><span class="app-brand__divider"></span><span>Agente Comunitário de Saúde</span></div>
@@ -28,7 +28,7 @@
 </section>
 <section class="panel">
 <h2>Campanhas existentes</h2><div id="mailing-detalhe" class="panel hidden" style="margin:12px 0 0"><h3 id="detalhe-titulo">Itens do mailing</h3><div class="table-wrap"><table id="tabela-itens"><thead><tr><th>Paciente</th><th>Equipe</th><th>Microárea</th><th>Telefone</th><th>Status</th><th>Última visita</th></tr></thead><tbody></tbody></table></div><div id="detalhe-paginacao" style="margin-top:10px"></div></div>
-<div class="table-wrap"><table id="tabela"><thead><tr><th>Campanha</th><th>Unidade</th><th>Total</th><th>Concluídos</th><th>Pendentes</th><th>Status</th><th>Exportar</th></tr></thead><tbody></tbody></table></div>
+<div class="table-wrap"><table id="tabela"><thead><tr><th>Campanha</th><th>Unidade</th><th>Total</th><th>Concluídos</th><th>Pendentes</th><th>Status</th><th>Giro</th><th>Exportar</th></tr></thead><tbody></tbody></table></div>
 </section>
 </main>
 <script>
@@ -115,6 +115,17 @@ async function verMailing(c){
  $('detalhe-paginacao').textContent=`Exibindo ${d.itens?.length||0} registros (máximo de 500 nesta visualização).`;
  box.scrollIntoView({behavior:'smooth',block:'start'});
 }
+async function alternarGiro(c){
+ const interromper=!c.giro_interrompido;
+ const aviso=interromper
+  ?`Interromper o giro da campanha "${c.nome}"?\n\nOs operadores deixam de receber novos contatos deste mailing. Nada é apagado e quem já está com um contato aberto consegue salvar a pesquisa. Você pode retomar quando quiser.`
+  :`Retomar o giro da campanha "${c.nome}"? Os operadores voltam a receber contatos pendentes.`;
+ if(!confirm(aviso))return;
+ const r=await fetch('/api/admin/campanhas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id,interromper})});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)return msg(d.mensagem||`Erro ao ${interromper?'interromper':'retomar'} o giro (HTTP ${r.status}). Se for 404/405/500, confira se a migração v2.9 foi aplicada e as funções publicadas.`);
+ msg(d.mensagem,true);carregar();
+}
 async function excluirCampanha(c){
  if(!confirm(`Excluir a campanha "${c.nome}" e todos os ${c.total||0} contatos do mailing?\n\nOs dados pessoais do mailing (nome, CNS, CPF, telefone, endereço) serão removidos permanentemente. Recomenda-se exportar o CSV antes, se necessário.`))return;
  let r=await fetch(`/api/admin/campanhas?id=${encodeURIComponent(c.id)}`,{method:'DELETE'});
@@ -128,7 +139,7 @@ async function excluirCampanha(c){
  $('mailing-detalhe').classList.add('hidden');
  msg(d.mensagem,true);carregar();
 }
-async function carregar(){const r=await fetch('/api/admin/campanhas');if(!r.ok)return;const d=await r.json();preencherDestino(d.campanhas||[]);$('tabela').querySelector('tbody').innerHTML=(d.campanhas||[]).map(c=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.unidade||'—')}</td><td>${c.total||0}</td><td>${c.concluidos||0}</td><td>${c.pendentes||0}</td><td>${esc(c.status)}</td><td><button class="btn btn-secondary" type="button" data-campanha="${c.id}">Ver</button> <a class="btn btn-secondary" href="/api/export/mailing.csv?campanha_id=${encodeURIComponent(c.id)}">CSV</a> <button class="btn btn-danger" type="button" data-excluir="${c.id}">Excluir campanha</button></td></tr>`).join(''); document.querySelectorAll('[data-excluir]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.excluir);if(c)excluirCampanha(c);}); document.querySelectorAll('[data-campanha]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.campanha);if(c)verMailing(c);}); const q=new URLSearchParams(location.search).get('campanha_id'); if(q){const c=(d.campanhas||[]).find(x=>String(x.id)===q);if(c)verMailing(c);}}
+async function carregar(){const r=await fetch('/api/admin/campanhas');if(!r.ok)return;const d=await r.json();preencherDestino(d.campanhas||[]);$('tabela').querySelector('tbody').innerHTML=(d.campanhas||[]).map(c=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.unidade||'—')}</td><td>${c.total||0}</td><td>${c.concluidos||0}</td><td>${c.pendentes||0}</td><td>${esc(c.status)}</td><td>${c.giro_interrompido?'<span class="badge badge-danger">Interrompido</span>':'<span class="badge badge-success">Em giro</span>'}${c.em_andamento?`<br><small class="hint">${c.em_andamento} em atendimento</small>`:''}</td><td><button class="btn btn-secondary" type="button" data-campanha="${c.id}">Ver</button> <a class="btn btn-secondary" href="/api/export/mailing.csv?campanha_id=${encodeURIComponent(c.id)}">CSV</a> <button class="btn btn-secondary" type="button" data-giro="${c.id}">${c.giro_interrompido?'Retomar giro':'Interromper giro'}</button> <button class="btn btn-danger" type="button" data-excluir="${c.id}">Excluir campanha</button></td></tr>`).join(''); document.querySelectorAll('[data-excluir]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.excluir);if(c)excluirCampanha(c);}); document.querySelectorAll('[data-giro]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.giro);if(c)alternarGiro(c);}); document.querySelectorAll('[data-campanha]').forEach(b=>b.onclick=()=>{const c=(d.campanhas||[]).find(x=>String(x.id)===b.dataset.campanha);if(c)verMailing(c);}); const q=new URLSearchParams(location.search).get('campanha_id'); if(q){const c=(d.campanhas||[]).find(x=>String(x.id)===q);if(c)verMailing(c);}}
 $('logout').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location.href='index.html';};
 (async()=>{const r=await fetch('/api/me');const u=await r.json().catch(()=>({}));if(!r.ok||u.perfil!=='admin')location.href='inquerito.html';else carregar();})();
 </script>

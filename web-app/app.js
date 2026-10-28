@@ -28,16 +28,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const campos = [...dadosDoContato, ...respostas];
 
   let contatoAtual = null; // item do mailing em atendimento (null = modo manual)
-  let microareaOriginal = ''; // valor que veio do mailing/e-SUS, para sinalizar quando o operador alterar
 
-  const atualizarAvisoMicroarea = () => {
-    const el = $('microarea-aviso');
-    if (!el) return;
-    const atual = $('microarea').value.trim();
-    el.textContent = microareaOriginal && atual !== microareaOriginal
-      ? `Alterada pelo operador (original: ${microareaOriginal}).` : '';
-  };
-  $('microarea')?.addEventListener('input', atualizarAvisoMicroarea);
+  // Filtro do mailing: a microárea vem do mailing (e-SUS) e não é editada; serve para escolher o que atender.
+  const CHAVE_FILTRO = 'inq_filtro_mailing';
+  let opcoes = [];                          // campanhas ativas e seus territórios (GET /api/mailing/opcoes)
+  let filtro = { campanha_id: null, todas: false, terr: [] }; // todas = sorteio entre todos os mailings em giro
+  const VALOR_TODAS = 'todas';
+  let campanhaAtualId = null;
+  const chaveTerr = (t) => `${t.equipe || ''}|||${t.microarea || ''}`;
+  const rotuloEquipe = (e) => e || 'Equipe não identificada';
+  const rotuloMicro = (m) => (!m ? 'Microárea não identificada' : /^micro/i.test(m) ? m : `Microárea ${m}`);
+  const lerFiltroSalvo = () => { try { return JSON.parse(localStorage.getItem(CHAVE_FILTRO) || 'null'); } catch { return null; } };
+  const salvarFiltro = () => { try { localStorage.setItem(CHAVE_FILTRO, JSON.stringify(filtro)); } catch { /* sem armazenamento: segue sem lembrar */ } };
 
   // ---- WhatsApp: botão abre uma janela com a mensagem (editável) e o link wa.me ----
   // A mensagem padrão é definida pelo administrador (menu "Mensagem WhatsApp"); se o servidor não responder, usa esta.
@@ -120,8 +122,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const limparForm = () => {
     form.reset();
-    microareaOriginal = '';
-    if ($('microarea-aviso')) $('microarea-aviso').textContent = '';
     if ($('tel-extra')) $('tel-extra').textContent = '';
     limparWhats();
   };
@@ -129,8 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function preencher(item) {
     limparForm();
     $('microarea').value = item.microarea || '';
-    microareaOriginal = (item.microarea || '').trim();
-    atualizarAvisoMicroarea();
     $('acs_nome').value = item.acs_nome || '';
     $('endereco_pec').value = item.endereco || '';
     $('responsavel_familiar').value = item.nome_paciente || '';
@@ -148,19 +146,141 @@ document.addEventListener('DOMContentLoaded', async () => {
   function mostrarFila(r) {
     const barra = $('barra-mailing');
     if (!barra) return;
-    if (!r.campanha) { barra.classList.add('hidden'); return; }
+    if (!r.campanha) { barra.classList.add('hidden'); $('filtro-mailing')?.classList.add('hidden'); return; }
+    campanhaAtualId = r.campanha.id;
     barra.classList.remove('hidden');
-    $('mailing-titulo').textContent = r.campanha.nome;
-    $('mailing-info').textContent = `${r.feitos} atendidos · ${r.pendentes} pendentes · ${r.total} no total`;
+    barra.classList.toggle('mailing-bar--pausado', Boolean(r.campanha.interrompida));
+    $('mailing-titulo').textContent = r.campanha.todas
+      ? 'Todos os mailings ativos (ordem aleatória)'
+      : r.campanha.nome + (r.campanha.interrompida ? ' — giro interrompido' : '');
+    const escopo = filtro.terr.length ? `nas ${filtro.terr.length} microárea(s) escolhida(s)` : 'no total';
+    $('mailing-info').textContent = r.campanha.interrompida
+      ? 'Interrompido pelo administrador: nenhum novo contato será entregue.'
+      : `${r.feitos} atendidos · ${r.pendentes} pendentes · ${r.total} ${escopo}`
+        + (r.campanha.todas && r.item?.campanha_nome ? ` · Contato do mailing: ${r.item.campanha_nome}` : '');
     $('btn-pular').classList.toggle('hidden', !contatoAtual);
   }
 
+  // ---- Filtro: escolha da campanha e das microáreas ----
+  function renderTerritorios(campId, marcadas) {
+    const box = $('f-territorios');
+    box.textContent = '';
+    if (campId === VALOR_TODAS) {
+      box.textContent = 'No modo aleatório, os contatos vêm de todos os mailings em giro (não interrompidos) e o filtro por microárea fica desativado.';
+      return;
+    }
+    const camp = opcoes.find((c) => c.id === campId);
+    if (!camp || !camp.territorios.length) { box.textContent = 'Esta campanha ainda não tem contatos.'; return; }
+    const porEquipe = new Map();
+    camp.territorios.forEach((t) => { if (!porEquipe.has(t.equipe)) porEquipe.set(t.equipe, []); porEquipe.get(t.equipe).push(t); });
+    for (const [equipe, lista] of porEquipe) {
+      const grupo = document.createElement('div'); grupo.className = 'equipe';
+      const tit = document.createElement('strong'); tit.textContent = rotuloEquipe(equipe);
+      grupo.appendChild(tit);
+      lista.sort((a, b) => a.microarea.localeCompare(b.microarea, undefined, { numeric: true })).forEach((t) => {
+        const lab = document.createElement('label'); lab.className = 'check';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = chaveTerr(t); cb.checked = marcadas.has(cb.value);
+        const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = t.pendentes;
+        lab.append(cb, ' ' + rotuloMicro(t.microarea) + ' ', cnt);
+        grupo.appendChild(lab);
+      });
+      box.appendChild(grupo);
+    }
+  }
+
+  function renderFiltro() {
+    const sel = $('f-campanha');
+    if (!sel) return;
+    sel.textContent = '';
+    const emGiro = opcoes.filter((c) => !c.interrompida);
+    if (emGiro.length) {
+      const o = document.createElement('option');
+      o.value = VALOR_TODAS;
+      o.textContent = `Todos os mailings ativos — aleatório (${emGiro.reduce((n, c) => n + c.pendentes, 0)} pendentes)`;
+      sel.appendChild(o);
+    }
+    opcoes.forEach((c) => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = `${c.nome}${c.interrompida ? ' — interrompida' : ''} (${c.pendentes} pendentes)`;
+      sel.appendChild(o);
+    });
+    const alvo = filtro.todas && emGiro.length ? VALOR_TODAS
+      : opcoes.some((c) => c.id === filtro.campanha_id) ? filtro.campanha_id
+      : opcoes.some((c) => c.id === campanhaAtualId) ? campanhaAtualId : opcoes[0]?.id;
+    if (alvo != null) sel.value = alvo;
+    const idSel = sel.value === VALOR_TODAS ? VALOR_TODAS : Number(sel.value);
+    renderTerritorios(idSel, new Set(idSel === filtro.campanha_id ? filtro.terr : []));
+  }
+
+  async function carregarOpcoes() {
+    try {
+      const res = await fetch('/api/mailing/opcoes');
+      if (res.status === 401) return irParaLogin();
+      opcoes = res.ok ? ((await res.json()).campanhas || []) : [];
+    } catch { opcoes = []; }
+    // Descarta do filtro salvo o que não existe mais (campanha encerrada/excluída, microárea removida)
+    const salvo = lerFiltroSalvo();
+    const camp = opcoes.find((c) => c.id === salvo?.campanha_id);
+    filtro = salvo?.todas && opcoes.some((c) => !c.interrompida)
+      ? { campanha_id: null, todas: true, terr: [] }
+      : camp
+        ? { campanha_id: camp.id, todas: false, terr: (salvo.terr || []).filter((k) => camp.territorios.some((t) => chaveTerr(t) === k)) }
+        : { campanha_id: null, todas: false, terr: [] };
+  }
+
+  const alternarFiltro = (abrir) => {
+    const painel = $('filtro-mailing');
+    if (!painel) return;
+    const mostrar = abrir ?? painel.classList.contains('hidden');
+    painel.classList.toggle('hidden', !mostrar);
+    $('btn-filtro')?.setAttribute('aria-expanded', String(mostrar));
+    if (mostrar) renderFiltro();
+  };
+  $('btn-filtro')?.addEventListener('click', () => alternarFiltro());
+  $('f-campanha')?.addEventListener('change', () => {
+    const v = $('f-campanha').value;
+    const id = v === VALOR_TODAS ? VALOR_TODAS : Number(v);
+    renderTerritorios(id, new Set(id === filtro.campanha_id ? filtro.terr : []));
+  });
+  $('f-limpar')?.addEventListener('click', () => {
+    document.querySelectorAll('#f-territorios input:checked').forEach((cb) => { cb.checked = false; });
+  });
+  $('f-aplicar')?.addEventListener('click', async () => {
+    const todas = $('f-campanha').value === VALOR_TODAS;
+    const campanha_id = todas ? null : (Number($('f-campanha').value) || null);
+    const terr = todas ? [] : [...document.querySelectorAll('#f-territorios input:checked')].map((cb) => cb.value);
+    if (contatoAtual && $('status_ligacao').value && !confirm('Há uma ligação preenchida e não salva. Trocar o mailing descarta esses dados e devolve o contato à fila. Continuar?')) return;
+    if (contatoAtual) {
+      await fetch('/api/mailing/devolver', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: contatoAtual.id })
+      }).catch(() => {});
+    }
+    filtro = { campanha_id, todas, terr };
+    salvarFiltro();
+    aviso('');
+    const achou = await carregarProximo();
+    if (achou) alternarFiltro(false);
+  });
+
   async function carregarProximo() {
     try {
-      const res = await fetch('/api/mailing/proximo');
+      const q = new URLSearchParams();
+      if (filtro.todas) q.set('todas', '1');
+      else if (filtro.campanha_id) q.set('campanha_id', filtro.campanha_id);
+      filtro.terr.forEach((k) => q.append('terr', k));
+      const res = await fetch('/api/mailing/proximo' + (q.toString() ? `?${q}` : ''));
       if (res.status === 401) return irParaLogin();
       const r = await res.json().catch(() => ({}));
       if (!res.ok) { aviso(r.mensagem || `Não foi possível carregar o próximo contato (HTTP ${res.status}).`); return false; }
+      // A campanha escolhida deixou de estar ativa: volta ao padrão e atualiza as opções
+      if (!r.campanha && (filtro.campanha_id || filtro.todas)) {
+        filtro = { campanha_id: null, todas: false, terr: [] };
+        salvarFiltro();
+        await carregarOpcoes();
+        return carregarProximo();
+      }
       contatoAtual = r.item || null;
       mostrarFila(r);
       if (contatoAtual) { preencher(contatoAtual); return true; }
@@ -178,11 +298,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const veioDaExtensao = dadosDoContato.some((c) => params.get(c));
   if (veioDaExtensao) {
     dadosDoContato.forEach((c) => { if ($(c)) $(c).value = params.get(c) || ''; });
-    microareaOriginal = ($('microarea')?.value || '').trim();
     mostrarWhats(params.get('telefone_contato') ? [params.get('telefone_contato')] : [], params.get('responsavel_familiar'));
   }
   if (window.location.hash) history.replaceState(null, '', window.location.pathname);
-  if (!veioDaExtensao) await carregarProximo();
+  if (!veioDaExtensao) { await carregarOpcoes(); await carregarProximo(); }
 
   $('btn-pular')?.addEventListener('click', async () => {
     if (!contatoAtual) return;

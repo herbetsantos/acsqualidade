@@ -106,3 +106,11 @@ são **rejeitados como duplicados** (e não são alterados: status, operador e r
 são adicionados, e a mensagem final informa quantos foram adicionados e quantos duplicados foram rejeitados. Novas equipes/microáreas
 marcadas passam a fazer parte da composição da campanha. O envio é feito em lotes de 200 contatos (batch no D1), o que evita o
 limite de consultas por requisição. Se um envio for interrompido, basta repetir escolhendo a mesma campanha.
+
+
+## Operador: escolher o mailing e Administrador: interromper o giro (v2.9)
+- **Microárea é dado de origem** (vem do e-SUS via mailing): no formulário ela é somente leitura e o servidor grava a microárea do mailing, ignorando qualquer valor digitado.
+- **Filtro do operador** (botão *Escolher mailing* em Registrar ligação): escolhe a campanha e as equipes/microáreas que quer atender. O giro entrega só contatos pendentes desse recorte; a escolha fica lembrada no navegador.
+- **Interromper giro** (Administração → Mailing, coluna *Giro*): o mailing deixa de entregar novos contatos. Nada é apagado e quem está com um contato aberto ainda consegue salvar. *Retomar giro* reativa.
+- **Migração obrigatória antes de publicar:** `database/migracao-v2.9.sql` (3 colunas novas em `campanhas`; um comando por vez no console do D1).
+- **Modo aleatório:** no seletor do operador, a opção *Todos os mailings ativos — aleatório* sorteia o próximo contato entre os pendentes de todas as campanhas ativas e **não interrompidas** (interrompidas e encerradas ficam de fora). Nesse modo o filtro por microárea é desativado e a barra mostra de qual mailing veio o contato. Não exige migração além da v2.9.

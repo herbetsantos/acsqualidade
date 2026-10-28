@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS campanhas (
     coleta_percentual REAL DEFAULT 0,
     coleta_validada INTEGER DEFAULT 0,
     coleta_validada_em TEXT,
+    giro_interrompido INTEGER NOT NULL DEFAULT 0,   -- 1 = administrador interrompeu o giro do mailing
+    giro_interrompido_em TEXT,
+    giro_interrompido_por INTEGER,
     FOREIGN KEY (criado_por) REFERENCES profissionais(id)
 );
 
